@@ -137,7 +137,6 @@ class LLaMA:
 
 if __name__ == '__main__':
     torch.manual_seed(0)
-    #llama_model='llama-2-7b/',
     llama_model = './story_model'
 
     allow_cuda = True

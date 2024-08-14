@@ -124,7 +124,7 @@ void BaseTensor<Dtype>::_get_info_from_numpy(py::array_t<float>& np_array) {
         __shape.push_back(dim);
 
     for (auto stride : buf_info.strides)
-        __strides.push_back(stride / sizeof(Dtype));
+        __strides.push_back(stride / sizeof(float));
 }
 
 template<typename Dtype>

@@ -60,7 +60,7 @@ CudaTensor<Dtype>::CudaTensor(const std::vector<int32_t>& shape,
     size_t size = this->_prod(this->__shape);
     this->array.reset(new CudaArray<Dtype>(size, create_cache));
 
-    std::cout << "selected cuda backend 2, " << create_cache << std::endl;
+    //std::cout << "selected cuda backend 2, " << create_cache << std::endl;
 }
 
 template<typename Dtype>
@@ -140,7 +140,7 @@ py::array_t<float> CudaTensor<Dtype>::to_numpy() {
     std::transform(numpy_strides.begin(), 
                    numpy_strides.end(), 
                    numpy_strides.begin(),
-                   [](int32_t& c) { return c * sizeof(Dtype); });
+                   [](int32_t& c) { return c * sizeof(float); });
 
     // copy memory to host
     float* host_ptr = (float*)std::malloc(this->array->size() * sizeof(float));

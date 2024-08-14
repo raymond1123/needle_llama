@@ -1,0 +1,48 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build_dir",
+            "command": "mkdir",
+            "type": "shell",
+            "args": [
+                "-p",
+                "build"
+            ]
+        },
+        {
+            "label": "cmake",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "../",
+                "-GNinja",
+                "-DLLVM_DIR=/home/ubuntu/llvm_project_1706/llvm_install_dir/lib/cmake/llvm",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "dependsOn": [
+                "build_dir"
+            ]
+        },
+        {
+            "label": "build",
+            "group": "build",
+            "type": "shell",
+            "command": "ninja",
+            "args": [
+                "-j2"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "cmake"
+            ]
+        }
+    ]
+}

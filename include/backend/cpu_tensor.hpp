@@ -54,7 +54,7 @@ CpuTensor<Dtype>::CpuTensor(py::array_t<float>& np_array, DataType dtype):
     BaseTensor<Dtype>(np_array, dtype) {
     size_t size = this->_prod(this->__shape);
     this->array.reset(new CpuArray<Dtype>(size));
-    std::cout << "selected cpu backend" << std::endl;
+    //std::cout << "selected cpu backend" << std::endl;
     _from_numpy(np_array);
 }
 
@@ -67,7 +67,7 @@ CpuTensor<Dtype>::CpuTensor(const std::vector<int32_t>& shape,
     if(create_cache)
         this->array.reset(new CpuArray<Dtype>(size));
 
-    std::cout << "selected cpu backend" << std::endl;
+    //std::cout << "selected cpu backend" << std::endl;
 }
 
 template<typename Dtype>

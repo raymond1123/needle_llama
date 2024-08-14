@@ -48,6 +48,6 @@ target_link_libraries(needle PUBLIC ${CUDA_LIBRARIES} CUDA::cublas CUDA::cudart)
 # directly output to ffi folder
 set_target_properties(needle
     PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/python/)
+    LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/unittest/)
     #LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/python/)
 

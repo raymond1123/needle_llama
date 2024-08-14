@@ -15,7 +15,7 @@ public:
 
         const int tid = blockIdx.x * kBlockSize + threadIdx.x;
         for (int64_t i = tid; i < n; i += blockDim.x * gridDim.x) {
-          z[i] = x[i] + y[i];
+            z[i] = x[i] + y[i];
         }
     }
 };

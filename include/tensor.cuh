@@ -51,6 +51,7 @@ public:
 
     inline cached_data_type cached_data() { return __cached_data; }
     inline py::array_t<float> to_numpy() { return __cached_data->to_numpy(); }
+    inline void from_buffer() { __cached_data->from_buffer(); }
     inline py::array_t<Dtype> grad() { return __cached_data->grad->to_numpy(); }
     inline std::vector<int32_t> shape() { return __cached_data->shape(); }
     inline std::vector<int32_t> strides() { return __cached_data->strides(); }
@@ -75,8 +76,6 @@ public:
 
     void realized_cached_data(const std::shared_ptr<GenericOp<Dtype>> op,
                               std::vector<cached_data_type>& inputs);
-
-    void from_buffer();
 
     /* operations */
     // element-wise addition
@@ -170,7 +169,7 @@ Tensor<Dtype>::Tensor(std::vector<int32_t> shape, DataType dtype, BackendType ba
     tensor_idx++;
     __tensor_idx = tensor_idx;
     __cached_data->tensor_idx = __tensor_idx;
-    __print_tensor_info("ctor");
+    //__print_tensor_info("ctor");
     #endif
 }
 
@@ -197,7 +196,7 @@ Tensor<Dtype>::Tensor(py::array_t<float>& np_array,
     tensor_idx++;
     __tensor_idx = tensor_idx;
     __cached_data->tensor_idx = __tensor_idx;
-    __print_tensor_info("plane ctor");
+    //__print_tensor_info("plane ctor");
     #endif
 }
 
@@ -223,7 +222,7 @@ Tensor<Dtype>::Tensor(BackendType backend,
     __cached_data->tensor_idx = __tensor_idx;
 
     #ifdef DEBUG
-    __print_tensor_info("ctor");
+    //__print_tensor_info("ctor");
     #endif
 }
 
@@ -327,7 +326,7 @@ Tensor<Dtype> Tensor<Dtype>::zeros(std::vector<int32_t> shape,
     tensor_idx++;
     tensor.__tensor_idx = tensor_idx;
     tensor.__cached_data->tensor_idx = tensor.__tensor_idx;
-    //tensor.__print_tensor_info("zeros");
+    //tensor.tensor_idx:__print_tensor_info("zeros");
     #endif
 
     return tensor;
@@ -374,9 +373,9 @@ Tensor<Dtype>::Tensor(Tensor&& other) noexcept:
 
     __cached_data->tensor_idx = __tensor_idx;
     #ifdef DEBUG
-    printf("tensor_idx:%d, original=%p, new=%p, move constructor\n", 
-           __tensor_idx, &other, this);
-    __print_tensor_info("move constructor");
+    //printf("tensor_idx:%d, original=%p, new=%p, move constructor\n", 
+    //       __tensor_idx, &other, this);
+    //__print_tensor_info("move constructor");
     #endif
 }
 
@@ -393,7 +392,7 @@ Tensor<Dtype>& Tensor<Dtype>::operator=(Tensor<Dtype>&& other) noexcept {
     other.__cached_data = nullptr;
 
     #ifdef DEBUG
-    printf("tensor_idx:%d, move operator=\n", __tensor_idx);
+    //printf("tensor_idx:%d, move operator=\n", __tensor_idx);
     #endif
 
     return *this;
@@ -416,8 +415,8 @@ Tensor<Dtype>::Tensor(const Tensor& other):
     tensor_idx++;
     __tensor_idx = tensor_idx;
     __cached_data->tensor_idx = __tensor_idx;
-    __print_tensor_info("cpy ctor");
-    printf("tensor_idx:%d, cpy constructor\n", __tensor_idx);
+    //__print_tensor_info("cpy ctor");
+    //printf("tensor_idx:%d, cpy constructor\n", __tensor_idx);
     #endif
 }
 
@@ -438,8 +437,8 @@ Tensor<Dtype>::Tensor(Tensor* other):
     tensor_idx++;
     __tensor_idx = tensor_idx;
     __cached_data->tensor_idx = __tensor_idx;
-    __print_tensor_info("cpy ctor");
-    printf("tensor_idx:%d, cpy constructor\n", __tensor_idx);
+    //__print_tensor_info("cpy ctor");
+    //printf("tensor_idx:%d, cpy constructor\n", __tensor_idx);
     #endif
 }
 
@@ -458,8 +457,8 @@ Tensor<Dtype>& Tensor<Dtype>::operator=(const Tensor<Dtype>& other) {
     tensor_idx++;
     __tensor_idx = tensor_idx;
     __cached_data->tensor_idx = __tensor_idx;
-    __print_tensor_info("cpy operator=");
-    printf("tensor_idx:%d, cpy operator=\n", __tensor_idx);
+    //__print_tensor_info("cpy operator=");
+    //printf("tensor_idx:%d, cpy operator=\n", __tensor_idx);
     #endif
 
     return *this;
@@ -484,7 +483,7 @@ Tensor<Dtype>& Tensor<Dtype>::operator+=(const Tensor<Dtype>& other) {
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
     inputs.push_back(other.__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     __cached_data = (*op)(op, inputs, __backend, true);
 
@@ -504,7 +503,7 @@ Tensor<Dtype>& Tensor<Dtype>::operator-=(Tensor<Dtype>&& other) {
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
     inputs.push_back(other.__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     __cached_data = (*op)(op, inputs, __backend, true);
 
@@ -525,7 +524,7 @@ Tensor<Dtype> Tensor<Dtype>::operator+(Tensor<Dtype>& other) {
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
     inputs.push_back(other.__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -539,7 +538,7 @@ Tensor<Dtype> Tensor<Dtype>::operator+(const Dtype scalar) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -557,7 +556,7 @@ Tensor<Dtype> Tensor<Dtype>::operator-(Tensor<Dtype>& other) {
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
     inputs.push_back(other.__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -571,7 +570,7 @@ Tensor<Dtype> Tensor<Dtype>::operator-(const Dtype scalar) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -589,7 +588,7 @@ Tensor<Dtype> Tensor<Dtype>::operator*(Tensor<Dtype>& other) {
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
     inputs.push_back(other.__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -603,7 +602,7 @@ Tensor<Dtype> Tensor<Dtype>::operator*(const Dtype scalar) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -621,7 +620,7 @@ Tensor<Dtype> Tensor<Dtype>::operator/(Tensor<Dtype>& other) {
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
     inputs.push_back(other.__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -635,7 +634,7 @@ Tensor<Dtype> Tensor<Dtype>::operator/(const Dtype scalar) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -653,7 +652,7 @@ Tensor<Dtype> Tensor<Dtype>::op_pow(Tensor<Dtype>& other) {
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
     inputs.push_back(other.__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -667,7 +666,7 @@ Tensor<Dtype> Tensor<Dtype>::op_pow(const Dtype scalar) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -698,7 +697,7 @@ Tensor<Dtype> Tensor<Dtype>::reshape(std::vector<int32_t> new_shape) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -711,7 +710,7 @@ Tensor<Dtype> Tensor<Dtype>::flip(std::vector<int> axes) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -724,7 +723,7 @@ Tensor<Dtype> Tensor<Dtype>::broadcast_to(std::vector<int32_t> shape) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -737,7 +736,7 @@ Tensor<Dtype> Tensor<Dtype>::permute(std::vector<int> axes) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -750,7 +749,7 @@ Tensor<Dtype> Tensor<Dtype>::transpose(std::vector<int> axes) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -763,7 +762,7 @@ Tensor<Dtype> Tensor<Dtype>::summation(std::vector<int> axes) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -776,7 +775,7 @@ Tensor<Dtype> Tensor<Dtype>::summation() {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -805,7 +804,7 @@ std::vector<Tensor<Dtype>> Tensor<Dtype>::max(int dim, bool keepdim) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     Tensor<Dtype> out = (*op)(op, inputs, __backend);
 
@@ -822,7 +821,7 @@ Tensor<Dtype> Tensor<Dtype>::padding(std::vector<int> axes) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -834,7 +833,7 @@ Tensor<Dtype> Tensor<Dtype>::dilate(uint32_t dilation, std::vector<int> axes) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -846,7 +845,7 @@ Tensor<Dtype> Tensor<Dtype>::relu() {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -858,7 +857,7 @@ Tensor<Dtype> Tensor<Dtype>::tanh() {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -870,7 +869,7 @@ Tensor<Dtype> Tensor<Dtype>::log() {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -882,7 +881,7 @@ Tensor<Dtype> Tensor<Dtype>::exp() {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -894,7 +893,7 @@ Tensor<Dtype> Tensor<Dtype>::neg() {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -907,7 +906,7 @@ Tensor<Dtype> Tensor<Dtype>::slice(std::vector<py::object> indices) {
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    printf("===============+\n");
+    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -971,11 +970,6 @@ void Tensor<Dtype>::realized_cached_data(const std::shared_ptr<GenericOp<Dtype>>
     __cached_data = __cached_data->realized_cached_data();
     __cached_data->op = op;
     __cached_data->inputs = inputs;
-}
-
-template<typename Dtype>
-void Tensor<Dtype>::from_buffer() {
-    __cached_data->from_buffer();
 }
 
 template<typename Dtype>
