@@ -20,11 +20,12 @@ public:
            BackendType backend=BackendType::CUDA);
     Tensor(std::vector<int32_t> shape, DataType dtype=DataType::FLOAT, 
            BackendType backend=BackendType::CUDA);
-    Tensor(BackendType backend, 
+    Tensor(DataType dtype,
+           BackendType backend, 
            std::shared_ptr<GenericOp<Dtype>> op=nullptr,
            std::vector<cached_data_type> inputs={nullptr});
 
-    static Tensor fill_val(std::vector<int32_t> shape, Dtype val, 
+    static Tensor fill_val(std::vector<int32_t> shape, float val, 
                            DataType dtype=DataType::FLOAT,
                            BackendType backend=BackendType::CUDA);
     static Tensor ones(std::vector<int32_t> shape, 
@@ -111,6 +112,7 @@ public:
     Tensor log();
     Tensor exp();
     Tensor neg();
+    //Tensor<float> ro_tri();
 
     /* backward */
     void backward();
@@ -201,18 +203,19 @@ Tensor<Dtype>::Tensor(py::array_t<float>& np_array,
 }
 
 template<typename Dtype>
-Tensor<Dtype>::Tensor(BackendType backend, 
+Tensor<Dtype>::Tensor(DataType dtype, BackendType backend, 
            std::shared_ptr<GenericOp<Dtype>> op,
-           std::vector<std::shared_ptr<BaseTensor<Dtype>>> inputs): __backend(backend)  {
+           std::vector<std::shared_ptr<BaseTensor<Dtype>>> inputs): 
+           dtype(dtype), __backend(backend) {
 
     if (__backend == BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
-            __cached_data = std::make_shared<CpuTensor<Dtype>>(op, inputs);
+            __cached_data = std::make_shared<CpuTensor<Dtype>>(dtype, op, inputs);
         } else {
             throw std::runtime_error("cpu does not support half data type");
         }
     } else if (__backend == BackendType::CUDA) {
-        __cached_data = std::make_shared<CudaTensor<Dtype>>(op, inputs);
+        __cached_data = std::make_shared<CudaTensor<Dtype>>(dtype, op, inputs);
     } else {
         throw std::runtime_error("Unsupported backend type.");
     }
@@ -243,7 +246,7 @@ Tensor<Dtype> Tensor<Dtype>::ones(std::vector<int32_t> shape,
                                   DataType dtype,
                                   BackendType backend) {
 
-    Tensor<Dtype> tensor = Tensor<Dtype>(backend);
+    Tensor<Dtype> tensor = Tensor<Dtype>(dtype, backend);
 
     if (backend == BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
@@ -269,12 +272,13 @@ Tensor<Dtype> Tensor<Dtype>::ones(std::vector<int32_t> shape,
 
     return tensor;
 }
+
 template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::arange(int32_t start, int32_t end, int32_t step, 
                                     DataType dtype,
                                     BackendType backend) {
 
-    Tensor<Dtype> tensor = Tensor<Dtype>(backend);
+    Tensor<Dtype> tensor = Tensor<Dtype>(dtype, backend);
     std::vector<int32_t> shape = {((end-start)+step-1)/step}; // ceil
 
     if (backend == BackendType::CPU) {
@@ -305,7 +309,7 @@ template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::zeros(std::vector<int32_t> shape,
                                    DataType dtype,
                                    BackendType backend) {
-    Tensor<Dtype> tensor = Tensor<Dtype>(backend);
+    Tensor<Dtype> tensor = Tensor<Dtype>(dtype, backend);
 
     if (backend == BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
@@ -334,11 +338,11 @@ Tensor<Dtype> Tensor<Dtype>::zeros(std::vector<int32_t> shape,
 
 template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::fill_val(std::vector<int32_t> shape, 
-                                      Dtype val, 
+                                      float val, 
                                       DataType dtype,
                                       BackendType backend) {
 
-    Tensor<Dtype> tensor = Tensor<Dtype>(backend);
+    Tensor<Dtype> tensor = Tensor<Dtype>(dtype, backend);
 
     if (backend == BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
@@ -898,6 +902,25 @@ Tensor<Dtype> Tensor<Dtype>::neg() {
     return (*op)(op, inputs, __backend);
 }
 
+/*
+template<typename Dtype>
+Tensor<float> Tensor<Dtype>::ro_tri() {
+    if (__backend == BackendType::CPU) {
+        if constexpr (std::is_same_v<Dtype, float>) {
+            __cached_data = std::make_shared<CpuTensor<Dtype>>(np_array, dtype);
+        } else {
+            throw std::runtime_error("cpu does not support half data type");
+        }
+    } else if (__backend == BackendType::CUDA) {
+        __cached_data = std::make_shared<CudaTensor<Dtype>>(np_array, dtype);
+    } else {
+        throw std::runtime_error("Unsupported backend type.");
+    }
+
+    __cached_data->cached = true;
+}
+*/
+
 template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::slice(std::vector<py::object> indices) {
     std::shared_ptr<GenericOp<Dtype>> op = 
@@ -954,7 +977,7 @@ Tensor<Dtype> Tensor<Dtype>::make_from_op(const std::shared_ptr<GenericOp<Dtype>
 
     assert(inputs.size() > 0 && "number of inputs is zero");
 
-    Tensor<Dtype> new_t = Tensor<Dtype>(backend, op, inputs);
+    Tensor<Dtype> new_t = Tensor<Dtype>(inputs[0]->dtype, backend, op, inputs);
 
     new_t.__cached_data = new_t.__cached_data->realized_cached_data();
     new_t.__cached_data->op = op;
@@ -984,12 +1007,14 @@ std::shared_ptr<BaseTensor<Dtype>> Tensor<Dtype>::make_from_op_on_self(
 
     if (backend == BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
-            cached_data = std::make_shared<CpuTensor<Dtype>>(op, inputs);
+            cached_data = std::make_shared<CpuTensor<Dtype>>(inputs[0]->dtype, 
+                                                             op, inputs);
         } else {
             throw std::runtime_error("cpu does not support half data type");
         }
     } else if (backend == BackendType::CUDA) {
-        cached_data = std::make_shared<CudaTensor<Dtype>>(op, inputs);
+        cached_data = std::make_shared<CudaTensor<Dtype>>(inputs[0]->dtype,
+                                                          op, inputs);
     } else {
         throw std::runtime_error("Unsupported backend type.");
     }

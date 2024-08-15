@@ -16,8 +16,10 @@ public:
     using cached_data_type = std::shared_ptr<BaseTensor<Dtype>>;
     explicit CpuTensor(const std::vector<int32_t>& shape, DataType dtype=DataType::FLOAT,
                        bool create_cache=true);
-    CpuTensor(const std::shared_ptr<GenericOp<Dtype>> op, 
-               std::vector<cached_data_type> inputs): BaseTensor<Dtype>(op, inputs) {}
+    CpuTensor(DataType dtype,
+              const std::shared_ptr<GenericOp<Dtype>> op, 
+              std::vector<cached_data_type> inputs): 
+                    BaseTensor<Dtype>(dtype, op, inputs) {}
     explicit CpuTensor(py::array_t<float>& np_array, DataType dtype=DataType::FLOAT);
     ~CpuTensor() {}
 
@@ -27,7 +29,7 @@ public:
     virtual void half(const float* data) override;
     virtual void to_float(float* data);
     virtual py::array_t<float> to_numpy() override;
-    virtual void fill_val(Dtype val, DataType dtype) override;
+    virtual void fill_val(float val, DataType dtype) override;
     virtual void zeros() override;
     virtual void arange(int32_t start, int32_t step, DataType dtype) override;
     virtual void ones() override;
@@ -71,8 +73,8 @@ CpuTensor<Dtype>::CpuTensor(const std::vector<int32_t>& shape,
 }
 
 template<typename Dtype>
-void CpuTensor<Dtype>::fill_val(Dtype val, DataType dtype) {
-    this->array->fill_val(val);
+void CpuTensor<Dtype>::fill_val(float val, DataType dtype) {
+    this->array->fill_val(static_cast<Dtype>(val));
     this->dtype = dtype;
 }
 

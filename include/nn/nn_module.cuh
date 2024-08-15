@@ -1,18 +1,16 @@
 #ifndef __NN_MODULE_CUH__
 #define __NN_MODULE_CUH__
 
-#include "tensor.cuh"
+#include "needle_tensor.cuh"
 #include "backend/base_tensor.hpp"
 
 /* special Tensor that represents parameters */
-template<typename Dtype>
-class Parameter: public Tensor<Dtype> {};
+class Parameter: public NdlTensor {};
 
-template<typename Dtype>
 class Module {
 public:
-    using module_type = std::shared_ptr<Module<Dtype>>;
-    using param_type = std::shared_ptr<Tensor<Dtype>>;
+    using module_type = std::shared_ptr<Module>;
+    using param_type = std::shared_ptr<NdlTensor>;
 
     Module(): _training(true) {}
     Module(std::vector<module_type>& modules): 
@@ -34,7 +32,7 @@ public:
             m->_training = false;
     }
 
-    inline std::vector<Tensor<Dtype>> operator()(std::vector<Tensor<Dtype>>& inputs) {
+    inline std::vector<NdlTensor> operator()(std::vector<NdlTensor>& inputs) {
         return forward(inputs);
     }
 
@@ -50,9 +48,9 @@ public:
         return params;
     }
 
-    virtual std::vector<Tensor<Dtype>> forward(std::vector<Tensor<Dtype>>& tensors) {
-        std::vector<Tensor<Dtype>> inputs = tensors;
-        std::vector<Tensor<Dtype>> out;
+    virtual std::vector<NdlTensor> forward(std::vector<NdlTensor>& tensors) {
+        std::vector<NdlTensor> inputs = tensors;
+        std::vector<NdlTensor> out;
 
         for(int i = 0; i<get_modules().size(); ++i) {
             out = get_modules()[i]->forward(inputs);
@@ -89,19 +87,18 @@ protected:
     std::vector<param_type> _params;
 };
 
-template<typename Dtype>
-class Sequential: public Module<Dtype> {
+class Sequential: public Module {
 public:
-    using module_type = std::shared_ptr<Module<Dtype>>;
+    using module_type = std::shared_ptr<Module>;
 
-    Sequential(std::vector<module_type>& modules): Module<Dtype>(modules) {}
+    Sequential(std::vector<module_type>& modules): Module(modules) {}
 
-    virtual std::vector<Tensor<Dtype>> forward(std::vector<Tensor<Dtype>>& tensors) override {
-        std::vector<Tensor<Dtype>> inputs = tensors;
-        std::vector<Tensor<Dtype>> out;
+    virtual std::vector<NdlTensor> forward(std::vector<NdlTensor>& tensors) override {
+        std::vector<NdlTensor> inputs = tensors;
+        std::vector<NdlTensor> out;
 
-        for(int i = 0; i<Module<Dtype>::get_modules().size(); ++i) {
-            out = Module<Dtype>::get_modules()[i]->forward(inputs);
+        for(int i = 0; i<Module::get_modules().size(); ++i) {
+            out = Module::get_modules()[i]->forward(inputs);
             inputs = out;
         }
 

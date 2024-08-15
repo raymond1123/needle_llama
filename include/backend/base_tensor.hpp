@@ -16,15 +16,16 @@ public:
     BaseTensor(const std::vector<int32_t> &shape, DataType dtype=DataType::FLOAT);
     BaseTensor(py::array_t<float> &np_array, DataType dtype=DataType::FLOAT);
 
-    BaseTensor(const std::shared_ptr<GenericOp<Dtype>> op, 
-               std::vector<cached_data_type> inputs): 
+    BaseTensor(DataType dtype,
+               const std::shared_ptr<GenericOp<Dtype>> op, 
+               std::vector<cached_data_type> inputs): dtype(dtype),
         op(op), inputs(inputs), cached(false), is_compact(true) {}
 
     virtual ~BaseTensor()=default;
 
     virtual py::array_t<float> to_numpy()=0;
     virtual inline size_t size()=0;
-    virtual void fill_val(Dtype val, DataType dtype)=0;
+    virtual void fill_val(float val, DataType dtype)=0;
     virtual void half(const float* data)=0;
     virtual void to_float(float* data)=0;
     virtual void zeros()=0;

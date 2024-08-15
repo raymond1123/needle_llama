@@ -81,7 +81,8 @@ enum class OpType: int {
     Stack = 27,
     Split = 29,
     LogSumExp= 30,
-    Conv = 31
+    Conv = 31,
+    RoTri = 32
 };
 
 enum class DataType: int{

@@ -66,10 +66,10 @@ void ApplyGemm_fp16(std::vector<int> &first_shape,
         __half* B = gemm_AB[1]->cached_ptr() + i*offset_B;
         __half* C = gemm_C->cached_ptr() + i*offset_C;
 
-        cublasGemmEx(handle, CUBLAS_OP_T, CUBLAS_OP_N, 
-                     M, N, K, 
+        cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, 
+                     N, M, K, 
                      &alpha, 
-                     B, CUDA_R_16F, K, 
+                     B, CUDA_R_16F, N, 
                      A, CUDA_R_16F, K, 
                      &beta, 
                      C, CUDA_R_16F, N, 

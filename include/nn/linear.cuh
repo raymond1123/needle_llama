@@ -8,25 +8,24 @@
 
 namespace py = pybind11;
 
-template<typename Dtype>
-class Linear: public Module<Dtype> {
+class Linear: public Module {
 
 public:
-    using param_type = std::shared_ptr<Tensor<Dtype>>;
+    using param_type = std::shared_ptr<NdlTensor>;
 
     Linear(int in_features, int out_features, 
            bool bias=true, 
            DataType dtype=DataType::FLOAT,
            BackendType device=BackendType::CUDA): 
-        Module<Dtype>(), _need_bias(bias),
+        Module(), _need_bias(bias),
         _in_features(in_features), _out_features(out_features) {
 
             std::vector<int32_t> weight_shape = {_out_features, _in_features};
-            _weight = kaiming_uniform<Dtype>(weight_shape, dtype, device, "relu");
+            _weight = kaiming_uniform(weight_shape, dtype, device, "relu");
 
             if(bias) {
                 std::vector<int32_t> bias_shape = {1, _out_features};
-                _bias = kaiming_uniform<Dtype>(bias_shape, dtype, device, "relu");
+                _bias = kaiming_uniform(bias_shape, dtype, device, "relu");
             }
 
             this->_params.push_back(_weight);
@@ -38,11 +37,11 @@ public:
                     BackendType device=BackendType::CUDA) {
         if(_need_bias) {
             assert(params.size()==2 && "param number of Linear with bias must be 2");
-            _bias.reset(new Tensor<Dtype>(params[1], dtype, device));
+            _bias.reset(new NdlTensor(params[1], dtype, device));
         } else 
             assert(params.size()==1 && "param number of Linear without bias must be 1");
 
-        _weight.reset(new Tensor<Dtype>(params[0], dtype, device));
+        _weight.reset(new NdlTensor(params[0], dtype, device));
         _in_features = _weight->shape()[1];
         _out_features = _weight->shape()[0];
 
@@ -50,7 +49,7 @@ public:
         this->_params.push_back(_bias);
     }
 
-    virtual std::vector<Tensor<Dtype>> forward(std::vector<Tensor<Dtype>>& tensors) override {
+    virtual std::vector<NdlTensor> forward(std::vector<NdlTensor>& tensors) override {
         assert(tensors.size()==1 && "input number of Linear must be 1");
 
         auto x = tensors[0];

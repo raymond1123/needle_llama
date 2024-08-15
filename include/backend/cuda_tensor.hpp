@@ -16,10 +16,12 @@ public:
     using cached_data_type = std::shared_ptr<BaseTensor<Dtype>>;
 
     explicit CudaTensor(py::array_t<float>& np_array, DataType dtype=DataType::FLOAT);
-    CudaTensor(const std::shared_ptr<GenericOp<Dtype>> op, 
-               std::vector<cached_data_type> inputs): BaseTensor<Dtype>(op, inputs) {}
     explicit CudaTensor(const std::vector<int32_t>& shape, DataType dtype=DataType::FLOAT,
                         bool create_cache=true);
+    CudaTensor(DataType dtype,
+              const std::shared_ptr<GenericOp<Dtype>> op, 
+              std::vector<cached_data_type> inputs): 
+                    BaseTensor<Dtype>(dtype, op, inputs) {}
     ~CudaTensor() {}
 
     CudaTensor(const CudaTensor&)=delete;
@@ -28,7 +30,7 @@ public:
     virtual void half(const float* data);
     virtual void to_float(float* data);
     virtual py::array_t<float> to_numpy() override;
-    virtual void fill_val(Dtype val, DataType dtype) override;
+    virtual void fill_val(float val, DataType dtype) override;
     virtual void zeros() override;
     virtual void ones() override;
     virtual void arange(int32_t start, int32_t step, DataType dtype) override;
@@ -64,8 +66,8 @@ CudaTensor<Dtype>::CudaTensor(const std::vector<int32_t>& shape,
 }
 
 template<typename Dtype>
-void CudaTensor<Dtype>::fill_val(Dtype val, DataType dtype) {
-    this->array->fill_val(val);
+void CudaTensor<Dtype>::fill_val(float val, DataType dtype) {
+    this->array->fill_val(static_cast<Dtype>(val));
     this->is_compact = true;
     this->cached = true;
     this->dtype = dtype;
@@ -127,7 +129,7 @@ void CudaTensor<Dtype>::_from_numpy(py::array_t<float> &a) {
     if constexpr (std::is_same_v<Dtype, float>) {
         this->array->mem_cpy(const_cast<float*>(ptr), MemCpyType::Host2Dev);
     } else if constexpr (std::is_same_v<Dtype, __half>) {
-        auto host_fp32 = std::make_shared<CudaArray<float>>(this->array->size()*sizeof(float));
+        auto host_fp32 = std::make_shared<CudaArray<float>>(this->array->size());
         host_fp32->mem_cpy(const_cast<float*>(ptr), MemCpyType::Host2Dev);
         half(host_fp32->get_ptr());
     }
@@ -135,6 +137,7 @@ void CudaTensor<Dtype>::_from_numpy(py::array_t<float> &a) {
 
 template<typename Dtype>
 py::array_t<float> CudaTensor<Dtype>::to_numpy() {
+    this->compact();
 
     std::vector<int32_t> numpy_strides = this->__strides;
     std::transform(numpy_strides.begin(), 
@@ -149,8 +152,6 @@ py::array_t<float> CudaTensor<Dtype>::to_numpy() {
     if constexpr (std::is_same_v<Dtype, float>) {
         this->array->mem_cpy(host_ptr, MemCpyType::Dev2Host);
     } else if constexpr (std::is_same_v<Dtype, __half>) {
-
-        //std::shared_ptr<CudaArray<float>> d_fp32 = std::make_shared<
         auto d_fp32 = std::make_shared<CudaArray<float>>(this->array->size(), true); 
         to_float(d_fp32->get_ptr());
         d_fp32->mem_cpy(host_ptr, MemCpyType::Dev2Host);

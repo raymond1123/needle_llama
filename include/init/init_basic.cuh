@@ -1,7 +1,7 @@
 #ifndef __INIT_BASIC_CUH__
 #define __INIT_BASIC_CUH__
 
-#include "tensor.cuh"
+#include "needle_tensor.cuh"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
@@ -79,111 +79,93 @@ py::array_t<float> _generate_randb(std::vector<int32_t>& shape,
 
 
 // Generate uniformly distributed random numbers
-template<typename Dtype>
-Tensor<Dtype> rand(std::vector<int32_t> shape, 
-                   float min=0.0, float max=1.0,
-                   DataType dtype=DataType::FLOAT,
-                   BackendType device=BackendType::CUDA) {
+NdlTensor rand(std::vector<int32_t> shape, 
+               float min=0.0, float max=1.0,
+               DataType dtype=DataType::FLOAT,
+               BackendType device=BackendType::CUDA) {
 
     auto result = _generate_uniform(shape, max, min);
-    auto tensor = Tensor<Dtype>(result, dtype, device);
+    auto tensor = NdlTensor(result, dtype, device);
 
     return tensor;
 }
 
 // Generate uniformly distributed random numbers
-template<typename Dtype>
-std::shared_ptr<Tensor<Dtype>> rand_shptr(std::vector<int32_t> shape, 
+std::shared_ptr<NdlTensor> rand_shptr(std::vector<int32_t> shape, 
                    float min=0.0, float max=1.0,
                    DataType dtype=DataType::FLOAT,
                    BackendType device=BackendType::CUDA) {
 
     auto result = _generate_uniform(shape, max, min);
-    std::shared_ptr<Tensor<Dtype>> tensor = 
-        std::make_shared<Tensor<Dtype>>(new Tensor<Dtype>(result, dtype, device));
+    std::shared_ptr<NdlTensor> tensor = 
+        std::make_shared<NdlTensor>(result, dtype, device);
 
     return tensor;
 }
 
 // Generate Gaussian distributed random numbers
-template<typename Dtype>
-Tensor<Dtype> randn(std::vector<int32_t> shape, 
+NdlTensor randn(std::vector<int32_t> shape, 
                    float mean=0.0, float std=1.0,
                    DataType dtype=DataType::FLOAT,
                    BackendType device=BackendType::CUDA) {
 
     auto result = _generate_normal(shape, mean, std);
-    auto tensor = Tensor<Dtype>(result, dtype, device);
+    auto tensor = NdlTensor(result, dtype, device);
     return tensor;
 }
 
-template<typename Dtype>
-std::shared_ptr<Tensor<Dtype>> randn_shptr(std::vector<int32_t> shape, 
+std::shared_ptr<NdlTensor> randn_shptr(std::vector<int32_t> shape, 
                    float mean=0.0, float std=1.0,
                    DataType dtype=DataType::FLOAT,
                    BackendType device=BackendType::CUDA) {
 
     auto result = _generate_normal(shape, mean, std);
-    std::shared_ptr<Tensor<Dtype>> tensor = 
-        std::make_shared<Tensor<Dtype>>(new Tensor<Dtype>(result, dtype, device));
+    std::shared_ptr<NdlTensor> tensor = 
+        std::make_shared<NdlTensor>(result, dtype, device);
 
     return tensor;
 }
 
-template<typename Dtype>
-Tensor<Dtype> randb(std::vector<int32_t> shape, 
+NdlTensor randb(std::vector<int32_t> shape, 
                     float prob=0.5,
                     DataType dtype=DataType::FLOAT,
                     BackendType device=BackendType::CUDA) {
 
     auto result = _generate_randb(shape, prob);
-    auto tensor = Tensor<Dtype>(result, dtype, device);
+    auto tensor = NdlTensor(result, dtype, device);
     return tensor;
 }
 
-template<typename Dtype>
-Tensor<Dtype> ones(std::vector<int32_t> shape, 
+NdlTensor ones(std::vector<int32_t> shape, 
                    DataType dtype=DataType::FLOAT,
                    BackendType device=BackendType::CUDA) {
-    return Tensor<Dtype>::ones(shape, dtype, device);
+    return NdlTensor::ones(shape, dtype, device);
 }
 
-template<typename Dtype>
-Tensor<Dtype> ones_like(Tensor<Dtype>& input) {
-    return Tensor<Dtype>::ones(input.shape(), input.dtype, input.device());
+NdlTensor ones_like(NdlTensor& input) {
+    return NdlTensor::ones(input.shape(), input.dtype, input.device());
 }
 
-template<typename Dtype>
-Tensor<Dtype> zeros(std::vector<int32_t> shape, 
+NdlTensor zeros(std::vector<int32_t> shape, 
                     DataType dtype=DataType::FLOAT,
                     BackendType device=BackendType::CUDA) {
-    return Tensor<Dtype>::zeros(shape, dtype, device);
+    return NdlTensor::zeros(shape, dtype, device);
 }
 
-template<typename Dtype>
-Tensor<Dtype> arange(size_t start, size_t end, size_t step=1, 
-                     DataType dtype=DataType::FLOAT,
-                     BackendType device=BackendType::CUDA) {
-    return Tensor<Dtype>::arange(start, end, step, dtype, device);
+NdlTensor zeros_like(NdlTensor& input) {
+    return NdlTensor::zeros(input.shape(), input.dtype, input.device());
 }
 
-template<typename Dtype>
-Tensor<Dtype> zeros_like(Tensor<Dtype>& input) {
-    return Tensor<Dtype>::zeros(input.shape(), input.dtype, input.device());
+NdlTensor constant(std::vector<int32_t> shape, 
+                   float val,
+                   DataType dtype=DataType::FLOAT,
+                   BackendType device=BackendType::CUDA) {
+    return NdlTensor::fill_val(shape, val, dtype, device);
 }
 
-template<typename Dtype>
-Tensor<Dtype> constant(std::vector<int32_t> shape, 
-                       Dtype val,
-                       DataType dtype=DataType::FLOAT,
-                       BackendType device=BackendType::CUDA) {
-    return Tensor<Dtype>::fill_val(shape, val, dtype, device);
-}
-
-template<typename Dtype>
-Tensor<Dtype> one_hot(int32_t size, int idx,
-                      DataType dtype=DataType::FLOAT,
-                      BackendType device=BackendType::CUDA) {
+NdlTensor one_hot(int32_t size, int idx,
+                  DataType dtype=DataType::FLOAT,
+                  BackendType device=BackendType::CUDA) {
 
     idx = idx>=0?idx:size+idx;
 
@@ -191,13 +173,13 @@ Tensor<Dtype> one_hot(int32_t size, int idx,
     auto ptr = p_arr.mutable_data();
 
     for (int i = 0; i < size; ++i)
-        ptr[idx] = static_cast<Dtype>(0.0);
+        ptr[idx] = 0.0; 
 
-    ptr[idx] = static_cast<Dtype>(1.0);
+    ptr[idx] = 1.0; 
     std::vector<int32_t> shape = {1,size};
     p_arr.resize(shape);
 
-    auto tensor = Tensor<Dtype>(p_arr, dtype, device);
+    auto tensor = NdlTensor(p_arr, dtype, device);
     return tensor;
 }
 

@@ -7,14 +7,13 @@
 #include <pybind11/numpy.h>
 #include <random>
 
-#include "tensor.cuh"
+#include "needle_tensor.cuh"
 #include "init/init_basic.cuh"
 
 namespace py = pybind11;
 
-template<typename Dtype>
-std::shared_ptr<Tensor<Dtype>> xavier_uniform(std::vector<int32_t> shape, 
-                             Dtype gain=1.0,
+std::shared_ptr<NdlTensor> xavier_uniform(std::vector<int32_t> shape, 
+                             float gain=1.0,
                              DataType dtype=DataType::FLOAT,
                              BackendType device=BackendType::CUDA) {
 
@@ -27,11 +26,10 @@ std::shared_ptr<Tensor<Dtype>> xavier_uniform(std::vector<int32_t> shape,
 
     float high = gain*scope(shape[0], shape[1]);
 
-    return rand_shptr<Dtype>(shape, -high, high, dtype, device);
+    return rand_shptr(shape, -high, high, dtype, device);
 }
 
-template<typename Dtype>
-std::shared_ptr<Tensor<Dtype>> xavier_normal(std::vector<int32_t> shape, 
+std::shared_ptr<NdlTensor> xavier_normal(std::vector<int32_t> shape, 
                              float gain=1.0,
                              DataType dtype=DataType::FLOAT,
                              BackendType device=BackendType::CUDA) {
@@ -45,11 +43,10 @@ std::shared_ptr<Tensor<Dtype>> xavier_normal(std::vector<int32_t> shape,
 
     float std = gain*std_f(shape[0], shape[1]);
 
-    return randn_shptr<Dtype>(shape, 0.0, std, dtype, device);
+    return randn_shptr(shape, 0.0, std, dtype, device);
 }
 
-template<typename Dtype>
-std::shared_ptr<Tensor<Dtype>> kaiming_uniform(std::vector<int32_t> shape, 
+std::shared_ptr<NdlTensor> kaiming_uniform(std::vector<int32_t> shape, 
                               DataType dtype=DataType::FLOAT,
                               BackendType device=BackendType::CUDA,
                               std::string nonlinearity="relu") {
@@ -64,11 +61,10 @@ std::shared_ptr<Tensor<Dtype>> kaiming_uniform(std::vector<int32_t> shape,
 
     float high = scope(shape[0]);
 
-    return rand_shptr<Dtype>(shape, -high, high, dtype, device);
+    return rand_shptr(shape, -high, high, dtype, device);
 }
 
-template<typename Dtype>
-std::shared_ptr<Tensor<Dtype>> kaiming_normal(std::vector<int32_t> shape, 
+std::shared_ptr<NdlTensor> kaiming_normal(std::vector<int32_t> shape, 
                              DataType dtype=DataType::FLOAT,
                              BackendType device=BackendType::CUDA,
                              std::string nonlinearity="relu") {
@@ -83,7 +79,7 @@ std::shared_ptr<Tensor<Dtype>> kaiming_normal(std::vector<int32_t> shape,
 
     float std = std_f(shape[0]);
 
-    return randn_shptr<Dtype>(shape, 0.0, std, dtype, device);
+    return randn_shptr(shape, 0.0, std, dtype, device);
 }
 
 #endif
