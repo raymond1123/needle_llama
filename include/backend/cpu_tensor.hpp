@@ -26,7 +26,7 @@ public:
     CpuTensor(const CpuTensor&)=delete;
     CpuTensor& operator=(const CpuTensor&)=delete;
 
-    virtual void half(const float* data) override;
+    virtual void half(const float* data, bool cached=false) override;
     virtual void to_float(float* data);
     virtual py::array_t<float> to_numpy() override;
     virtual void fill_val(float val, DataType dtype) override;
@@ -133,7 +133,7 @@ py::array_t<float> CpuTensor<Dtype>::to_numpy() {
 }
 
 template<typename Dtype>
-void CpuTensor<Dtype>::half(const float* data) {
+void CpuTensor<Dtype>::half(const float* data, bool cached) {
     assert(true && "now on cpu, only backend on CUDA can convert fp32 to fp16");
 }
 

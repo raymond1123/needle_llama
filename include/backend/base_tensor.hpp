@@ -26,7 +26,7 @@ public:
     virtual py::array_t<float> to_numpy()=0;
     virtual inline size_t size()=0;
     virtual void fill_val(float val, DataType dtype)=0;
-    virtual void half(const float* data)=0;
+    virtual void half(const float* data, bool is_cached=false)=0;
     virtual void to_float(float* data)=0;
     virtual void zeros()=0;
     virtual void ones()=0;
@@ -77,7 +77,6 @@ protected:
     std::vector<int32_t> __shape;
     std::vector<int32_t> __strides;
     size_t __offset;
-    bool __cached;
 };
 
 template<typename Dtype>
@@ -90,7 +89,7 @@ BaseTensor<Dtype>::BaseTensor(const std::vector<int32_t>& shape, DataType dtype)
 
 template<typename Dtype>
 BaseTensor<Dtype>::BaseTensor(py::array_t<float>& np_array, DataType dtype): 
-    __offset(0), cached(false), is_compact(true), dtype(dtype) {
+    __offset(0), cached(true), is_compact(true), dtype(dtype) {
     _get_info_from_numpy(np_array);
 }
 

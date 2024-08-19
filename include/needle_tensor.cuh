@@ -11,7 +11,7 @@ public:
     NdlTensor() {}
     NdlTensor(py::array_t<float>& np_array, 
               DataType dtype=DataType::FLOAT, 
-              BackendType backend=BackendType::CUDA) {
+              BackendType backend=BackendType::CUDA): dtype(dtype), device(backend) {
 
         if (dtype == DataType::FLOAT) {
             __tensor.emplace<Tensor<float>>(np_array, dtype, backend);
@@ -32,6 +32,51 @@ public:
         }
     }
 
+    // cpy ctor
+    NdlTensor(const NdlTensor& other): 
+            dtype(other.dtype), device(other.device), __tensor(other.__tensor) {
+
+        std::visit([&](auto& tensor, const auto& other) {
+            tensor.dtype = other.dtype; 
+        }, this->__tensor, other.__tensor);
+
+        printf("aaaaaa\n");
+    }
+
+    // move ctor
+    NdlTensor(const NdlTensor&& other) noexcept:
+            dtype(other.dtype), device(other.device), __tensor(other.__tensor) {
+
+        std::visit([&](auto& tensor) {
+            tensor.dtype = other.dtype; 
+        }, __tensor);
+
+        printf("bbbbbbb\n");
+    }
+
+    // cpy op= 
+    NdlTensor& operator=(const NdlTensor& other) {
+        if (this == &other) return *this;
+
+        this->dtype = other.dtype;
+        this->device = other.device;
+        this->__tensor = other.__tensor;
+
+        return *this;
+    }
+
+    // move op=
+    NdlTensor& operator=(NdlTensor&& other) noexcept {
+        if (this == &other) return *this;
+
+        this->dtype = std::move(other.dtype);
+        this->device = std::move(other.device);
+        this->__tensor = std::move(other.__tensor);
+
+        return *this;
+    }
+
+
     inline py::array_t<float> to_numpy() {
         return std::visit([](auto& tensor) -> py::array_t<float> {
             return tensor.to_numpy();
@@ -50,11 +95,11 @@ public:
         }, __tensor);
     }
 
-    inline BackendType device() const {
-        return std::visit([](auto& tensor) -> BackendType {
-            return tensor.device();
-        }, __tensor);
-    }
+    //inline BackendType device() const {
+    //    return std::visit([](auto& tensor) -> BackendType {
+    //        return tensor.device();
+    //    }, __tensor);
+    //}
 
     // operator+ for adding another NdlTensor
     NdlTensor operator+(NdlTensor& other) {
@@ -142,7 +187,7 @@ public:
             throw std::invalid_argument("Unsupported DataType");
         }
 
-        return tensor;
+        return std::move(tensor);
     }
 
     static NdlTensor ones(std::vector<int32_t> shape,
@@ -199,7 +244,7 @@ public:
     }
 
     // matmul another NdlTensor
-    NdlTensor matmul(NdlTensor& other) {
+    NdlTensor matmul(const NdlTensor& other) {
         return std::visit([&](auto& lhs, auto& rhs) -> NdlTensor {
             using LhsType = std::decay_t<decltype(lhs)>;
             using RhsType = std::decay_t<decltype(rhs)>;
@@ -232,8 +277,24 @@ public:
         return result;
     }
 
+    NdlTensor half() {
+        NdlTensor result;
+
+        std::visit([&](auto& tensor) {
+            using T = std::decay_t<decltype(tensor)>;
+            if constexpr (std::is_same_v<T, Tensor<float>>) {
+                result.__tensor = tensor.half();
+                result.dtype = DataType::HALF;
+                result.device = tensor.device();
+            }
+        }, this->__tensor);
+
+        return result;
+    }
+
 public:
     DataType dtype;
+    BackendType device;
 
 private:
     std::variant<Tensor<float>, Tensor<__half>> __tensor;

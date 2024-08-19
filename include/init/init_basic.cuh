@@ -143,7 +143,7 @@ NdlTensor ones(std::vector<int32_t> shape,
 }
 
 NdlTensor ones_like(NdlTensor& input) {
-    return NdlTensor::ones(input.shape(), input.dtype, input.device());
+    return NdlTensor::ones(input.shape(), input.dtype, input.device);
 }
 
 NdlTensor zeros(std::vector<int32_t> shape, 
@@ -153,7 +153,7 @@ NdlTensor zeros(std::vector<int32_t> shape,
 }
 
 NdlTensor zeros_like(NdlTensor& input) {
-    return NdlTensor::zeros(input.shape(), input.dtype, input.device());
+    return NdlTensor::zeros(input.shape(), input.dtype, input.device);
 }
 
 NdlTensor constant(std::vector<int32_t> shape, 

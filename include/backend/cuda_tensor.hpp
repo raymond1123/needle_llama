@@ -27,7 +27,7 @@ public:
     CudaTensor(const CudaTensor&)=delete;
     CudaTensor& operator=(const CudaTensor&)=delete;
 
-    virtual void half(const float* data);
+    virtual void half(const float* data, bool is_cached=false);
     virtual void to_float(float* data);
     virtual py::array_t<float> to_numpy() override;
     virtual void fill_val(float val, DataType dtype) override;
@@ -114,8 +114,9 @@ void CudaTensor<Dtype>::from_buffer() {
 }
 
 template<typename Dtype>
-void CudaTensor<Dtype>::half(const float* data) {
+void CudaTensor<Dtype>::half(const float* data, bool is_cached) {
     this->array->half(data);
+    this->cached = is_cached;
 }
 
 template<typename Dtype>

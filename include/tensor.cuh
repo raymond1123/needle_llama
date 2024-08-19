@@ -91,7 +91,7 @@ public:
     Tensor op_pow(Tensor& other);
     Tensor op_pow(const Dtype scalar);
 
-    Tensor matmul(Tensor& other);
+    Tensor matmul(const Tensor& other);
     Tensor& operator+=(const Tensor& other);
     Tensor& operator-=(Tensor&& other);
 
@@ -232,13 +232,15 @@ Tensor<Dtype>::Tensor(DataType dtype, BackendType backend,
 template<typename Dtype>
 Tensor<__half> Tensor<Dtype>::half() {
 
-    assert(dtype==DataType::FLOAT && "only support convert fp32 to fp16");
+    if constexpr (std::is_same_v<Dtype, float>) {
+        Tensor<__half> half_tensor(__cached_data->shape(), DataType::HALF, BackendType::CUDA);
+        half_tensor.cached_data()->half(this->__cached_data->cached_ptr(),
+                                        this->__cached_data->cached);
 
-    Tensor<__half> half_tensor(__cached_data->size);
-    half_tensor.__cached_data->half((this->__cached_data)->cached_ptr());
+        return half_tensor;
+    } 
 
-    half_tensor.dtype = DataType::HALF;
-    return half_tensor;
+    throw std::runtime_error("cpu does not support half data type");
 }
 
 template<typename Dtype>
@@ -388,6 +390,7 @@ Tensor<Dtype>& Tensor<Dtype>::operator=(Tensor<Dtype>&& other) noexcept {
 
     if(this == &other) return *this;
 
+    this->dtype = other.dtype;
     __tensor_idx = other.__tensor_idx;
     __backend = other.__backend;
     __cached_data = other.__cached_data;
@@ -450,6 +453,7 @@ template<typename Dtype>
 Tensor<Dtype>& Tensor<Dtype>::operator=(const Tensor<Dtype>& other) {
     if(this==&other) return *this;
 
+    this->dtype = other.dtype;
     __backend = other.__backend;
 
     //__cached_data = other.__cached_data->deep_cpy_cached_data();
@@ -676,7 +680,7 @@ Tensor<Dtype> Tensor<Dtype>::op_pow(const Dtype scalar) {
 }
 
 template<typename Dtype>
-Tensor<Dtype> Tensor<Dtype>::matmul(Tensor<Dtype>& other) {
+Tensor<Dtype> Tensor<Dtype>::matmul(const Tensor<Dtype>& other) {
 
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<MatMulOp<Dtype>>(OpType::MatMul);

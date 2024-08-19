@@ -37,7 +37,8 @@
 
 enum class BackendType: int {
     CPU = 0,
-    CUDA = 1
+    CUDA = 1,
+    NOT_CONCERN=2,
 };
 
 enum class MemCpyType: int {
@@ -87,7 +88,13 @@ enum class OpType: int {
 
 enum class DataType: int{
     FLOAT=0, HALF=1, 
-    INT8=2, INT4=3,
+    NOT_CONCERN=2,
+};
+
+enum class ModuleOp: int {
+    TRAIN = 0,
+    VAL = 1,
+    TO_HALF = 2,
 };
 
 #endif
