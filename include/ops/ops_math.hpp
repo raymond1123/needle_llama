@@ -23,5 +23,6 @@
 #include "ops/bp/stack.cuh"
 #include "ops/bp/matmul.cuh"
 #include "ops/bp/padding.cuh"
+#include "ops/bp/rms_norm.cuh"
 
 #endif

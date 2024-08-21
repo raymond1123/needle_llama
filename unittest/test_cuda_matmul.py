@@ -12,8 +12,8 @@ class TestTensor(unittest.TestCase):
 
         #self.shape1 = (3, 2)
         #self.shape2 = (2, 3)
-        self.shape1 = (1024, 512)
-        self.shape2 = (512, 256)
+        self.shape1 = (4, 2, 1024, 512)
+        self.shape2 = (4, 2, 512, 256)
         #self.shape1 = (128, 512)
         #self.shape2 = (512, 128)
 

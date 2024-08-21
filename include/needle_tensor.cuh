@@ -258,6 +258,24 @@ public:
             return *this;
         }, this->__tensor, other.__tensor);
     }
+
+    NdlTensor summation(const std::vector<int>& axes) {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            return tensor.summation(axes);
+        }, this->__tensor);
+    }
+
+    NdlTensor rms_norm() {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            return tensor.rms_norm();
+        }, this->__tensor);
+    }
+
+    NdlTensor summation() {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            return tensor.summation();
+        }, this->__tensor);
+    }
     
     NdlTensor transpose(std::vector<int> axes) {
         return std::visit([&](auto& tensor) -> NdlTensor {

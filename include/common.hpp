@@ -83,7 +83,8 @@ enum class OpType: int {
     Split = 29,
     LogSumExp= 30,
     Conv = 31,
-    RoTri = 32
+    RoTri = 32,
+    RMSNorm = 33
 };
 
 enum class DataType: int{

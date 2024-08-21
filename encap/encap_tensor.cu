@@ -19,13 +19,16 @@ void bind_tensor(py::module& m) {
             py::arg("backend")=BackendType::CUDA)
         
         .def_readwrite("dtype", &NdlTensor::dtype) // 将 dtype 作为属性公开
-        .def_readwrite("device", &NdlTensor::device) // 将 dtype 作为属性公开
+        .def_readwrite("device", &NdlTensor::device) // 将 device 作为属性公开
 
         .def("to_numpy", &NdlTensor::to_numpy)
         .def("shape", &NdlTensor::shape)
         .def("strides", &NdlTensor::strides)
         .def("matmul", &NdlTensor::matmul)
-
+        .def("rms_norm", &NdlTensor::rms_norm)
+        .def("summation", py::overload_cast<const std::vector<int>&>(&NdlTensor::summation),
+                        py::arg("axes"))
+        .def("summation", py::overload_cast<>(&NdlTensor::summation))
 
         .def("__add__", [](NdlTensor& a, NdlTensor& b) {
             return a + b;

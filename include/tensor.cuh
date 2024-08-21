@@ -112,6 +112,7 @@ public:
     Tensor log();
     Tensor exp();
     Tensor neg();
+    Tensor rms_norm();
     //Tensor<float> ro_tri();
 
     /* backward */
@@ -780,6 +781,19 @@ Tensor<Dtype> Tensor<Dtype>::summation() {
 
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<SummationOp<Dtype>>(OpType::Summation);
+
+    std::vector<cached_data_type> inputs;
+    inputs.push_back(__cached_data);
+    //printf("===============+\n");
+
+    return (*op)(op, inputs, __backend);
+}
+
+template<typename Dtype>
+Tensor<Dtype> Tensor<Dtype>::rms_norm() {
+
+    std::shared_ptr<GenericOp<Dtype>> op = 
+        std::make_shared<RMSNormOp<Dtype>>(OpType::RMSNorm);
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
