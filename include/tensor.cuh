@@ -113,7 +113,8 @@ public:
     Tensor exp();
     Tensor neg();
     Tensor rms_norm();
-    //Tensor<float> ro_tri();
+    Tensor rotary_emb();
+    Tensor softmax();
 
     /* backward */
     void backward();
@@ -794,6 +795,32 @@ Tensor<Dtype> Tensor<Dtype>::rms_norm() {
 
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<RMSNormOp<Dtype>>(OpType::RMSNorm);
+
+    std::vector<cached_data_type> inputs;
+    inputs.push_back(__cached_data);
+    //printf("===============+\n");
+
+    return (*op)(op, inputs, __backend);
+}
+
+template<typename Dtype>
+Tensor<Dtype> Tensor<Dtype>::rotary_emb() {
+
+    std::shared_ptr<GenericOp<Dtype>> op = 
+        std::make_shared<RotaryEmbOp<Dtype>>(OpType::RotaryEmb);
+
+    std::vector<cached_data_type> inputs;
+    inputs.push_back(__cached_data);
+    //printf("===============+\n");
+
+    return (*op)(op, inputs, __backend);
+}
+
+template<typename Dtype>
+Tensor<Dtype> Tensor<Dtype>::softmax() {
+
+    std::shared_ptr<GenericOp<Dtype>> op = 
+        std::make_shared<SoftmaxOp<Dtype>>(OpType::Softmax);
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);

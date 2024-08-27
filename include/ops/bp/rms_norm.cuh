@@ -15,7 +15,7 @@ public:
                                size_t reduce_size,
                                Dtype eps, 
                                const Dtype* a, 
-                               Dtype* sum) {
+                               Dtype* out) {
 
         size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
         if(tx >= n) return;
@@ -27,7 +27,13 @@ public:
             tmp += powf(a[offset+i], 2);
         }
 
-        sum[tx] = rsqrtf(tmp / static_cast<Dtype>(reduce_size) + eps);
+        tmp = rsqrtf(tmp / static_cast<Dtype>(reduce_size) + eps);
+
+        for(size_t i=0; i<reduce_size; ++i) {
+            out[offset+i] = a[offset+i] * tmp;
+        }
+
+        //out[tx] = rsqrtf(tmp / static_cast<Dtype>(reduce_size) + eps);
     }
 };
 
@@ -38,7 +44,7 @@ public:
                                int reduce_size,
                                __half eps,
                                const __half* a, 
-                               __half* sum) {
+                               __half* out) {
 
         size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
         if(tx >= n) return;
@@ -51,17 +57,20 @@ public:
             tmp = __hadd(tmp, eps); 
         }
 
-        sum[tx] = __hdiv(tmp, static_cast<__half>(reduce_size)); 
-        sum[tx] = hrsqrt(__hadd(eps, sum[tx]));
+        tmp = __hdiv(tmp, static_cast<__half>(reduce_size)); 
+        tmp = hrsqrt(__hadd(eps, tmp));
+
+        for(size_t i=0; i<reduce_size; ++i) {
+            out[offset+i] = __hmul(tmp, a[offset+i]);
+        }
     }
 };
 
-
 template<typename Dtype>
 __global__ void __launch_bounds__(kBlockSize)
-ApplyNorm(size_t n, size_t reduce_size, const Dtype* a, Dtype* sum, Dtype eps=1e-6) {
+ApplyNorm(size_t n, size_t reduce_size, const Dtype* a, Dtype* out, Dtype eps=1e-6) {
     auto functor = NormKernel<Dtype>();
-    functor(n, reduce_size, eps, a, sum);
+    functor(n, reduce_size, eps, a, out);
 }
 
 template<typename Dtype>
@@ -80,14 +89,17 @@ public:
         inputs[0]->compact();
         __prepare_pos_axes(inputs[0]->shape());
 
-        cached_data_type cached_data = __create_cached_data(_left_shape,
-                                                            inputs[0]->dtype,
-                                                            inputs[0]->device());
+        //cached_data_type cached_data = __create_cached_data(_left_shape,
+        //                                                    inputs[0]->dtype,
+        //                                                    inputs[0]->device());
 
-        cached_data_type out = __create_cached_data(inputs[0]->shape(),
+        cached_data_type cached_data = __create_cached_data(inputs[0]->shape(),
                                                             inputs[0]->dtype,
                                                             inputs[0]->device());
-        _n = cached_data->size();
+        _n = 1;
+        for(int i=0; i<inputs[0]->shape().size()-1; ++i)
+            _n *= inputs[0]->shape()[i];
+
         cudaError_t err = _get_num_blocks();
         assert(err==cudaSuccess && "get_num_blocks in SummationOp failed");
 
@@ -96,12 +108,12 @@ public:
                                                          inputs[0]->cached_ptr(),
                                                          cached_data->cached_ptr());
 
-        _n = inputs[0]->size();
-        cudaError_t err = _get_num_blocks();
-        assert(err==cudaSuccess && "get_num_blocks in SummationOp failed");
-        ApplyRMSNorm<Dtype><<<_num_blocks, kBlockSize, 0>>>(_n, inputs[0]->shape()[_axes],
-                                                  inputs[0]->cached_ptr(),
-                                                  cached_data->cached_ptr());
+        //_n = inputs[0]->size();
+        //cudaError_t err = _get_num_blocks();
+        //assert(err==cudaSuccess && "get_num_blocks in SummationOp failed");
+        //ApplyRMSNorm<Dtype><<<_num_blocks, kBlockSize, 0>>>(_n, inputs[0]->shape()[_axes],
+        //                                          inputs[0]->cached_ptr(),
+        //                                          cached_data->cached_ptr());
         err = cudaPeekAtLastError();
         assert(err==cudaSuccess && "ApplyRMSNorm failed");
 

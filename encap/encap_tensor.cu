@@ -29,6 +29,8 @@ void bind_tensor(py::module& m) {
         .def("summation", py::overload_cast<const std::vector<int>&>(&NdlTensor::summation),
                         py::arg("axes"))
         .def("summation", py::overload_cast<>(&NdlTensor::summation))
+        .def("rotary_emb", py::overload_cast<>(&NdlTensor::rotary_emb))
+        .def("softmax", py::overload_cast<>(&NdlTensor::softmax))
 
         .def("__add__", [](NdlTensor& a, NdlTensor& b) {
             return a + b;

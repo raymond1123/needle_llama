@@ -83,7 +83,6 @@ public:
                                                             inputs[0]->dtype,
                                                             inputs[0]->device());
         _n = cached_data->size();
-
         cudaError_t err = _get_num_blocks();
         assert(err==cudaSuccess && "get_num_blocks in SummationOp failed");
 

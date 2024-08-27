@@ -84,7 +84,9 @@ enum class OpType: int {
     LogSumExp= 30,
     Conv = 31,
     RoTri = 32,
-    RMSNorm = 33
+    RMSNorm = 33,
+    RotaryEmb= 34,
+    Softmax= 35
 };
 
 enum class DataType: int{

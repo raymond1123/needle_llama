@@ -271,6 +271,18 @@ public:
         }, this->__tensor);
     }
 
+    NdlTensor rotary_emb() {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            return tensor.rotary_emb();
+        }, this->__tensor);
+    }
+
+    NdlTensor softmax() {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            return tensor.softmax();
+        }, this->__tensor);
+    }
+
     NdlTensor summation() {
         return std::visit([&](auto& tensor) -> NdlTensor {
             return tensor.summation();

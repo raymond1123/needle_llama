@@ -24,5 +24,8 @@
 #include "ops/bp/matmul.cuh"
 #include "ops/bp/padding.cuh"
 #include "ops/bp/rms_norm.cuh"
+#include "ops/bp/rotary.cuh"
+#include "ops/bp/softmax.cuh"
+#include "ops/bp/silu.cuh"
 
 #endif
