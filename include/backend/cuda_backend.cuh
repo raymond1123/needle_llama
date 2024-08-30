@@ -176,6 +176,7 @@ void CudaArray<Dtype>::to_float(float* data) {
 
 template<typename Dtype>
 void CudaArray<Dtype>::fill_val(Dtype val) {
+    /*
     if(val==static_cast<Dtype>(0)) {
         cudaError_t err = cudaMemset(this->__ptr, val, 
                                      this->__size*sizeof(Dtype));
@@ -186,6 +187,10 @@ void CudaArray<Dtype>::fill_val(Dtype val) {
         int grid = (this->__size+block-1)/block;
         FillKernel<<<grid, block>>>(this->__ptr, val, this->__size);
     }
+    */
+    int block = 256;
+    int grid = (this->__size+block-1)/block;
+    FillKernel<<<grid, block>>>(this->__ptr, val, this->__size);
 }
 
 template<typename Dtype>

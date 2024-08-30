@@ -50,7 +50,7 @@ public:
     Tensor& operator=(const Tensor& other);
     std::shared_ptr<BaseTensor<Dtype>> deep_cpy_cached_data();
 
-    inline cached_data_type cached_data() { return __cached_data; }
+    inline cached_data_type cached_data() const { return __cached_data; }
     inline py::array_t<float> to_numpy() { return __cached_data->to_numpy(); }
     inline void from_buffer() { __cached_data->from_buffer(); }
     inline py::array_t<Dtype> grad() { return __cached_data->grad->to_numpy(); }
@@ -92,6 +92,8 @@ public:
     Tensor op_pow(const Dtype scalar);
 
     Tensor matmul(const Tensor& other);
+    Tensor embedding(const Tensor<float>& other);
+
     Tensor& operator+=(const Tensor& other);
     Tensor& operator-=(Tensor&& other);
 
@@ -113,7 +115,7 @@ public:
     Tensor exp();
     Tensor neg();
     Tensor rms_norm();
-    Tensor rotary_emb();
+    Tensor rotary_emb(int start_pos);
     Tensor softmax();
 
     /* backward */
@@ -374,7 +376,8 @@ Tensor<Dtype> Tensor<Dtype>::fill_val(std::vector<int32_t> shape,
 
 template<typename Dtype>
 Tensor<Dtype>::Tensor(Tensor&& other) noexcept:
-        __tensor_idx(other.__tensor_idx), __backend(other.__backend), 
+        __tensor_idx(other.__tensor_idx), dtype(other.dtype),
+        __backend(other.__backend), 
         __cached_data(other.__cached_data) {
 
     //other.__cached_data = nullptr;
@@ -695,6 +698,20 @@ Tensor<Dtype> Tensor<Dtype>::matmul(const Tensor<Dtype>& other) {
 }
 
 template<typename Dtype>
+Tensor<Dtype> Tensor<Dtype>::embedding(const Tensor<float>& index) {
+
+    std::shared_ptr<GenericOp<Dtype>> op = 
+        std::make_shared<EmbeddingOp<Dtype>>(index.cached_data(), 
+                                             OpType::Embedding);
+
+    std::vector<cached_data_type> inputs;
+    inputs.push_back(__cached_data);
+    //inputs.push_back(other.__cached_data);
+
+    return (*op)(op, inputs, __backend);
+}
+
+template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::reshape(std::vector<int32_t> new_shape) {
     assert(__check_type() && "cpu does not support half data type");
     size_t new_size = 1;
@@ -804,10 +821,10 @@ Tensor<Dtype> Tensor<Dtype>::rms_norm() {
 }
 
 template<typename Dtype>
-Tensor<Dtype> Tensor<Dtype>::rotary_emb() {
+Tensor<Dtype> Tensor<Dtype>::rotary_emb(int start_pos) {
 
     std::shared_ptr<GenericOp<Dtype>> op = 
-        std::make_shared<RotaryEmbOp<Dtype>>(OpType::RotaryEmb);
+        std::make_shared<RotaryEmbOp<Dtype>>(start_pos, OpType::RotaryEmb);
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
@@ -946,25 +963,6 @@ Tensor<Dtype> Tensor<Dtype>::neg() {
 
     return (*op)(op, inputs, __backend);
 }
-
-/*
-template<typename Dtype>
-Tensor<float> Tensor<Dtype>::ro_tri() {
-    if (__backend == BackendType::CPU) {
-        if constexpr (std::is_same_v<Dtype, float>) {
-            __cached_data = std::make_shared<CpuTensor<Dtype>>(np_array, dtype);
-        } else {
-            throw std::runtime_error("cpu does not support half data type");
-        }
-    } else if (__backend == BackendType::CUDA) {
-        __cached_data = std::make_shared<CudaTensor<Dtype>>(np_array, dtype);
-    } else {
-        throw std::runtime_error("Unsupported backend type.");
-    }
-
-    __cached_data->cached = true;
-}
-*/
 
 template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::slice(std::vector<py::object> indices) {

@@ -14,6 +14,7 @@ public:
     __device__ void operator()(size_t n,
                                const int num_head,
                                const int head_dim,
+                               const int start_pos,
                                const Dtype* a, 
                                Dtype* out) {
 
@@ -21,26 +22,33 @@ public:
         int col = threadIdx.x;
 
         int idx = row * blockDim.x + col;
-        float val = a[idx];
     
         if(idx>=n) return;
 
+        int i = col/2;
+        float theta_i = float(start_pos) * powf(10000, -2*i/float(head_dim));
+
+        float cos = cosf(theta_i);
+        float sin = sinf(theta_i);
+
         // shuffle (x1 <-> x2, x3<->x4, ...) 
+        float val = a[idx];
         float neighbor = __shfl_xor_sync(0xFFFFFFFF, val, 1);
-        //printf("n=%llu, row=%d, col=%d, neighbor=%f\n", n, row, col, neighbor);
+
         if(idx%2==0)
-            out[idx] = -neighbor;
+            out[idx] = val*cos - neighbor*sin; 
         else 
-            out[idx] = neighbor;
+            out[idx] = val*cos + neighbor*sin; 
     }
 };
 
 
 template<typename Dtype>
 __global__ void __launch_bounds__(kBlockSize)
-ApplyRotary(size_t n, const int num_head, const int head_dim, const Dtype* a, Dtype* out) {
+ApplyRotary(size_t n, const int num_head, const int head_dim, 
+            const int start_pos, const Dtype* a, Dtype* out) {
     auto functor = RotaryKernel<Dtype>();
-    functor(n, num_head, head_dim, a, out);
+    functor(n, num_head, head_dim, start_pos, a, out);
 }
 
 template<typename Dtype>
@@ -49,18 +57,17 @@ protected:
     using cached_data_type = std::shared_ptr<BaseTensor<Dtype>>;
 
 public:
-    RotaryEmbOp(OpType op_type): 
-            GenericOp<Dtype>(op_type), _num_blocks(0) {
-
-        assert(_head_dim%2==0 && "head dimention must be even");
-    }
+    RotaryEmbOp(int start_pos, OpType op_type): 
+            GenericOp<Dtype>(op_type), _start_pos(start_pos), _num_blocks(0) {}
 
     /* only can handle shape=[1,1,num_head, head_dim]*/
     virtual cached_data_type compute(std::vector<cached_data_type> inputs) override {
 
         std::vector<int32_t> input_shape = inputs[0]->shape();
         int shape_len = input_shape.size();
-        _num_head = input_shape[shape_len-2];
+        _num_head = 1;
+        for(int i=0; i<shape_len-1; ++i)
+            _num_head *= input_shape[i];
         _head_dim = input_shape[shape_len-1];
 
         cached_data_type cached_data = __create_cached_data(input_shape,
@@ -70,9 +77,11 @@ public:
         //cudaError_t err = _get_num_blocks();
         //assert(err==cudaSuccess && "get_num_blocks in SummationOp failed");
 
-        ApplyRotary<Dtype><<<_num_head, _head_dim, 0>>>(_n, _num_head, _head_dim,
-                                                         inputs[0]->cached_ptr(),
-                                                         cached_data->cached_ptr());
+        ApplyRotary<Dtype><<<_num_head, _head_dim, 0>>>(_n, _num_head, 
+                                                        _head_dim,
+                                                        _start_pos,
+                                                        inputs[0]->cached_ptr(),
+                                                        cached_data->cached_ptr());
 
         cudaError err = cudaPeekAtLastError();
         assert(err==cudaSuccess && "ApplyRMSNorm failed");
@@ -131,6 +140,7 @@ private:
     size_t _n;
     int _num_blocks;
 
+    int _start_pos;
     int _num_head;
     int _head_dim;
 };

@@ -68,8 +68,28 @@ class TestTensor(unittest.TestCase):
         self.ndl_x = ndl.Tensor(self.npx, dtype=ndl.fp32, backend=ndl.cuda)
         self.tch_x = torch.from_numpy(self.npx).to(torch.float32).cuda()
 
+        self.ndl_x_fp16 = ndl.Tensor(self.npx, dtype=ndl.fp16, backend=ndl.cuda)
+
     def check_shape(self, tensor, npx):
         self.assertEqual(tensor.shape, npx.shape)
+
+    def test_add_fp16_cuda(self):
+        # CUDA, fp32
+        freqs_complex = precompute_theta_pos_frequencies(self.head_dim,
+                                                         self.seq_len*2, 
+                                                         device=self.device)
+        start = 5; seq_len=1
+        tch_y = apply_rotary_embeddings(self.tch_x, freqs_complex[start:start+seq_len], self.device)
+        tch_y = tch_y.cpu().detach().numpy()
+
+        ndl_y = self.ndl_x_fp16.rotary_emb(start).to_numpy()
+        err = np.max(np.abs(ndl_y-tch_y))
+        print(f'{err=}')
+
+        if err < 1e-2:
+            print(f"fp32_cuda: {self.GREEN}PASS{self.RESET}")
+        else:
+            print(f"fp32_cuda: {self.RED}FAILED{self.RESET}, {err=}")
 
     def test_add_fp32_cuda(self):
         # CUDA, fp32
@@ -77,24 +97,17 @@ class TestTensor(unittest.TestCase):
                                                          self.seq_len*2, 
                                                          device=self.device)
         start = 5; seq_len=1
-        y = apply_rotary_embeddings(self.tch_x, freqs_complex[start:start+seq_len], self.device)
+        tch_y = apply_rotary_embeddings(self.tch_x, freqs_complex[start:start+seq_len], self.device)
+        tch_y = tch_y.cpu().detach().numpy()
 
-
-        npx = np.random.randn(2,4).astype(np.float32)
-        ndl_x = ndl.Tensor(npx, dtype=ndl.fp32, backend=ndl.cuda)
-        yyy = ndl_x.rotary_emb().to_numpy()
-        print()
-
-
-        '''
-        err = np.max(np.abs(ndl_result-tch_result))
+        ndl_y = self.ndl_x.rotary_emb(start).to_numpy()
+        err = np.max(np.abs(ndl_y-tch_y))
         print(f'{err=}')
 
         if err < 1e-4:
             print(f"fp32_cuda: {self.GREEN}PASS{self.RESET}")
         else:
             print(f"fp32_cuda: {self.RED}FAILED{self.RESET}, {err=}")
-        '''
 
 if __name__ == '__main__':
     unittest.main()

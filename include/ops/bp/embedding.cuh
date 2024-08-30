@@ -1,5 +1,5 @@
-#ifndef __SILU_OP__
-#define __SILU_OP__
+#ifndef __EMBD_OP__
+#define __EMBD_OP__
 
 #include "ops/generic_op.cuh"
 #include "ops/bp/permute.cuh"
@@ -9,95 +9,63 @@ template<typename Dtype> class CpuTensor;
 template<typename Dtype> class CudaTensor;
 
 template<typename Dtype>
-class SiluKernel {
+class EmbeddingKernel {
 public:
-    __device__ void operator()(size_t n,
-                               const int reduce_size,
-                               const Dtype* a, 
+    __device__ void operator()(const int n,
+                               const int dim,
+                               const Dtype* emb, 
+                               const float* idx, 
                                Dtype* out) {
 
         size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
         if(tx >= n) return;
 
-        size_t offset = tx*reduce_size;
-        Dtype tmp = 0;
-
-        for(size_t i=0; i<reduce_size; ++i) {
-            tmp += expf(a[offset+i]);
-        }
-
-        for(size_t i=0; i<reduce_size; ++i) {
-            out[offset+i] = expf(a[offset+i]) / tmp;
-        }
-    }
-};
-
-/* safe softmax for fp16 */
-template<>
-class SiluKernel<__half> {
-public:
-    __device__ void operator()(size_t n,
-                               const int reduce_size,
-                               const __half* a, 
-                               __half* out) {
-
-        size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
-        if(tx >= n) return;
-
-        size_t offset = tx*reduce_size;
-        __half tmp = 0, safe_max = a[offset];
-
-        for(size_t i=1; i<reduce_size; ++i) {
-            __half other = a[offset+i];
-            if(__hgt(other, safe_max))
-                safe_max = other; 
-        }
-
-        for(size_t i=0; i<reduce_size; ++i) {
-            tmp += (hexp(a[offset+i]-safe_max));
-        }
-
-        for(size_t i=0; i<reduce_size; ++i) {
-            out[offset+i] = hexp(a[offset+i]-safe_max) / tmp;
-        }
+        size_t offset = int(idx[blockIdx.x])*dim;
+        out[tx] = emb[threadIdx.x+offset];
     }
 };
 
 template<typename Dtype>
 __global__ void __launch_bounds__(kBlockSize)
-ApplySilu(size_t n, const int reduce_size, const Dtype* a, Dtype* out) {
-    auto functor = SiluKernel<Dtype>();
-    functor(n, reduce_size, a, out);
+ApplyEmbedding(const size_t n, const int dim, 
+               const Dtype* emb, const float* idx, Dtype* out) {
+    auto functor = EmbeddingKernel<Dtype>();
+    functor(n, dim, emb, idx, out);
 }
 
 template<typename Dtype>
-class SiluOp: public GenericOp<Dtype> {
+class EmbeddingOp: public GenericOp<Dtype> {
 protected:
     using cached_data_type = std::shared_ptr<BaseTensor<Dtype>>;
 
 public:
-    SiluOp(OpType op_type): 
-            GenericOp<Dtype>(op_type), _num_blocks(0) {}
+    EmbeddingOp(const std::shared_ptr<BaseTensor<float>>& index, OpType op_type): 
+            GenericOp<Dtype>(op_type), _num_blocks(0), _index(index) {}
 
-    /* only can handle shape=[1,1,num_head, head_dim]*/
+    /* only can handle shape=[1, 1, num_head, head_dim]*/
     virtual cached_data_type compute(std::vector<cached_data_type> inputs) override {
 
-        assert(inputs.size()==1 && "input number of softmax must be 1");
+        assert(inputs.size()==1 && "input number of embedding must be 1");
 
-        std::vector<int32_t> input_shape = inputs[0]->shape();
-        int shape_len = input_shape.size();
+        int32_t vocab_size = inputs[0]->shape()[0];
+        int32_t dim = inputs[0]->shape()[1];
+        int32_t batch_size = _index->shape()[0];
+        int32_t seq_len = _index->shape()[1];
 
-        cached_data_type cached_data = __create_cached_data(input_shape,
-                                                            DataType::FLOAT, 
+        std::vector<int32_t> out_shape = {batch_size, seq_len, dim};
+        cached_data_type cached_data = __create_cached_data(out_shape,
+                                                            inputs[0]->dtype,
                                                             inputs[0]->device());
-        _n = cached_data->size();
-        cudaError_t err = _get_num_blocks();
-        assert(err==cudaSuccess && "get_num_blocks in SummationOp failed");
-        ApplySilu<Dtype><<<_num_blocks, kBlockSize, 0>>>(_n,
-                                                         inputs[0]->cached_ptr(),
-                                                         cached_data->cached_ptr());
+        //_n = cached_data->size();
+        //cudaError_t err = _get_num_blocks();
+        //assert(err==cudaSuccess && "get_num_blocks in SummationOp failed");
+        _num_blocks = batch_size*seq_len;
+        ApplyEmbedding<Dtype><<<_num_blocks, dim, 0>>>(cached_data->size(), dim,
+                                                       inputs[0]->cached_ptr(),
+                                                       _index->cached_ptr(),
+                                                       cached_data->cached_ptr());
 
-        err = cudaPeekAtLastError();
+        cudaError_t err = cudaPeekAtLastError();
         assert(err==cudaSuccess && "ApplyRMSNorm failed");
 
         cached_data->cached = true;
@@ -123,7 +91,6 @@ protected:
     }
 
 private:
-
     inline cudaError_t __get_gpu_info(int* dev, int* sm_count, int* tpm) {
         cudaError_t err = cudaGetDevice(dev);
         if (err != cudaSuccess) { return err; }
@@ -153,6 +120,7 @@ private:
 private:
     size_t _n;
     int _num_blocks;
+    const std::shared_ptr<BaseTensor<float>> _index;
 };
 
 #endif

@@ -48,7 +48,7 @@ class TestTensor(unittest.TestCase):
         tch_result = self.tch_rms(tch_x).cpu().detach().numpy()
 
         ndl_result = ndl_x.rms_norm().to_numpy()
-        err = np.max(np.abs(ndl_result -tch_result))
+        err = np.max(np.abs(ndl_result-tch_result))
         print(f'{err=}')
 
 

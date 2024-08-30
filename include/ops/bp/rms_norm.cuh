@@ -32,8 +32,6 @@ public:
         for(size_t i=0; i<reduce_size; ++i) {
             out[offset+i] = a[offset+i] * tmp;
         }
-
-        //out[tx] = rsqrtf(tmp / static_cast<Dtype>(reduce_size) + eps);
     }
 };
 
@@ -89,10 +87,6 @@ public:
         inputs[0]->compact();
         __prepare_pos_axes(inputs[0]->shape());
 
-        //cached_data_type cached_data = __create_cached_data(_left_shape,
-        //                                                    inputs[0]->dtype,
-        //                                                    inputs[0]->device());
-
         cached_data_type cached_data = __create_cached_data(inputs[0]->shape(),
                                                             inputs[0]->dtype,
                                                             inputs[0]->device());
@@ -108,12 +102,6 @@ public:
                                                          inputs[0]->cached_ptr(),
                                                          cached_data->cached_ptr());
 
-        //_n = inputs[0]->size();
-        //cudaError_t err = _get_num_blocks();
-        //assert(err==cudaSuccess && "get_num_blocks in SummationOp failed");
-        //ApplyRMSNorm<Dtype><<<_num_blocks, kBlockSize, 0>>>(_n, inputs[0]->shape()[_axes],
-        //                                          inputs[0]->cached_ptr(),
-        //                                          cached_data->cached_ptr());
         err = cudaPeekAtLastError();
         assert(err==cudaSuccess && "ApplyRMSNorm failed");
 

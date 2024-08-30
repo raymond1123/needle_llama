@@ -57,8 +57,6 @@ public:
         return forward(input);
     }
 
-    virtual void ttt() {}; 
-
     virtual void to_half() {
         if(this->dtype==DataType::HALF || _params.size()==0) return;
 
@@ -166,7 +164,6 @@ public:
 
         return out;
     }
-    void ttt() override {} 
 };
 
 #endif

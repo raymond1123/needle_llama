@@ -27,5 +27,6 @@
 #include "ops/bp/rotary.cuh"
 #include "ops/bp/softmax.cuh"
 #include "ops/bp/silu.cuh"
+#include "ops/bp/embedding.cuh"
 
 #endif

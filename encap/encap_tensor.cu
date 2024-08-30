@@ -7,6 +7,8 @@
 #include "nn/function.cuh"
 #include "nn/nn_module.cuh"
 #include "nn/linear.cuh"
+#include "nn/nn_embedding.cuh"
+#include "nn/module_list.cuh"
 #include "init/init_basic.cuh"
 #include "init/initial.hpp"
 
@@ -18,19 +20,22 @@ void bind_tensor(py::module& m) {
             py::arg("dtype")=DataType::FLOAT,
             py::arg("backend")=BackendType::CUDA)
         
-        .def_readwrite("dtype", &NdlTensor::dtype) // 将 dtype 作为属性公开
-        .def_readwrite("device", &NdlTensor::device) // 将 device 作为属性公开
+        .def_readonly("dtype", &NdlTensor::dtype) // 将 dtype 作为属性公开
+        .def_readonly("device", &NdlTensor::device) // 将 device 作为属性公开
 
         .def("to_numpy", &NdlTensor::to_numpy)
         .def("shape", &NdlTensor::shape)
         .def("strides", &NdlTensor::strides)
         .def("matmul", &NdlTensor::matmul)
         .def("rms_norm", &NdlTensor::rms_norm)
+        .def("rotary_emb", &NdlTensor::rotary_emb)
         .def("summation", py::overload_cast<const std::vector<int>&>(&NdlTensor::summation),
                         py::arg("axes"))
         .def("summation", py::overload_cast<>(&NdlTensor::summation))
-        .def("rotary_emb", py::overload_cast<>(&NdlTensor::rotary_emb))
         .def("softmax", py::overload_cast<>(&NdlTensor::softmax))
+
+        .def("transpose", &NdlTensor::transpose)
+        .def("reshape", &NdlTensor::reshape)
 
         .def("__add__", [](NdlTensor& a, NdlTensor& b) {
             return a + b;
@@ -110,22 +115,50 @@ void bind_module(py::module& m) {
         .def("forward", &Sequential::forward); 
 
     py::class_<Linear, Module, std::shared_ptr<Linear>>(nn, "Linear")
-        .def(py::init<int, int, bool, DataType, BackendType>(),
+        .def(py::init<int, int, bool, DataType, BackendType, std::string>(),
             py::arg("in_features"),
             py::arg("out_features"),
             py::arg("bias") = true,
             py::arg("dtype") = DataType::FLOAT,
-            py::arg("device") = BackendType::CUDA)
+            py::arg("device") = BackendType::CUDA,
+            py::arg("name") = "Linear")
         .def("forward", &Linear::forward)
         .def("set_params", &Linear::set_params,
             py::arg("params"),
             py::arg("dtype")=DataType::FLOAT,
             py::arg("device")=BackendType::CUDA)
-        .def("weight_to_numpy", &Linear::weight_to_numpy)
-        .def("bias_to_numpy", &Linear::bias_to_numpy)
+        .def("see_weight", &Linear::see_weight)
         .def_readwrite("weight", &Linear::weight) // 将 dtype 作为属性公开
         .def_readwrite("bias", &Linear::bias) // 将 dtype 作为属性公开
         ;
+
+    py::class_<Embedding, Module, std::shared_ptr<Embedding>>(nn, "Embedding")
+        .def(py::init<int32_t, int32_t, DataType, BackendType, std::string>(),
+            py::arg("vocab_size"),
+            py::arg("dim"),
+            py::arg("dtype") = DataType::FLOAT,
+            py::arg("device") = BackendType::CUDA,
+            py::arg("name") = "Embedding")
+        .def("forward", &Embedding::forward)
+        .def("to_half", &Embedding::to_half)
+        .def("set_params", &Embedding::set_params,
+            py::arg("params"),
+            py::arg("dtype")=DataType::FLOAT,
+            py::arg("device")=BackendType::CUDA)
+        .def_readwrite("bias", &Embedding::token_emb)
+        ;
+
+    // 绑定 ModuleList 类
+    py::class_<ModuleList>(nn, "ModuleList")
+        .def(py::init<>())
+        .def("add_module", &ModuleList::add_module)
+        .def("__getitem__", &ModuleList::operator[])
+        .def("__len__", &ModuleList::size)
+        .def("__iter__", [](ModuleList &self) {
+            return py::make_iterator(self.begin(), self.end());
+        }, py::keep_alive<0, 1>());  // 保持容器有效，直到迭代器耗尽
+
+
 }
 
 void bind_function(py::module& m) {

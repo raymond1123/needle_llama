@@ -51,7 +51,9 @@ public:
         this->dtype = dtype;
 
         this->_params[0] = weight;
-        this->_params[1] = bias;
+
+        if(_need_bias)
+            this->_params[1] = bias;
     }
 
     NdlTensor forward(const NdlTensor& tensor) final {
@@ -87,25 +89,19 @@ public:
         if(this->dtype==DataType::FLOAT) {
             this->dtype = DataType::HALF;
             weight = std::make_shared<NdlTensor>(std::move(weight->half()));
-            bias = std::make_shared<NdlTensor>(std::move(bias->half()));
+
+            if(_need_bias)
+                bias = std::make_shared<NdlTensor>(std::move(bias->half()));
         }
 
         this->_params[0] = weight;
-        this->_params[1] = bias;
+
+        if(_need_bias)
+            this->_params[1] = bias;
     }
 
-    void ttt() override {
-        printf("aaaa\n");
-    } 
-
-    inline py::array_t<float> weight_to_numpy() {
-        auto www = this->_params[0];
-        return www->to_numpy();
-    }
-
-    inline py::array_t<float> bias_to_numpy() {
-        auto bbb = this->_params[1];
-        return bbb->to_numpy();
+    inline py::array_t<float> see_weight() {
+        return weight->to_numpy();
     }
 
 public:

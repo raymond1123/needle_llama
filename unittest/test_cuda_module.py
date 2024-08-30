@@ -108,16 +108,15 @@ class TestTensor(unittest.TestCase):
 
     def ndl_forward(self, x):
         self.ndl_model.eval()
-        #self.ndl_model.half()
+        self.ndl_model.half()
         return self.ndl_model(x)
 
     def tch_forward(self, x):
         self.tch_model.eval()
         self.tch_model.cuda()
-        #self.tch_model.cuda().half()
+        self.tch_model.cuda().half()
         return self.tch_model(x)
 
-    '''
     def test_fp16_cuda(self):
         ndl_x = ndl.Tensor(self.npx, dtype=ndl.fp16, backend=ndl.cuda)
         tch_x = torch.from_numpy(self.npx).to(torch.float16).cuda()
@@ -126,14 +125,15 @@ class TestTensor(unittest.TestCase):
         tch_y = self.tch_forward(tch_x).cpu().detach().numpy()
 
         self.check_shape(tch_y, ndl_y)
-        err = max(abs(ndl_y - tch_y))
+        err = np.max(abs(ndl_y - tch_y))
+        print(f'{err=}')
 
         if err < 1e-0:
             print(f"fp16_cuda: {self.GREEN}PASS{self.RESET}")
         else:
             print(f"fp16_cuda: {self.RED}FAILED{self.RESET}")
-    '''
 
+    '''
     def test_fp32_cuda(self):
         #self.tch_x = torch.from_numpy(self.npx).cuda()
         ndl_x = ndl.Tensor(self.npx, dtype=ndl.fp32, backend=ndl.cuda)
@@ -149,6 +149,7 @@ class TestTensor(unittest.TestCase):
             print(f"fp32_cuda: {self.GREEN}PASS{self.RESET}")
         else:
             print(f"fp32_cuda: {self.RED}FAILED{self.RESET}")
+    '''
 
 if __name__ == '__main__':
     unittest.main()

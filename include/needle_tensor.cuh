@@ -36,22 +36,19 @@ public:
     NdlTensor(const NdlTensor& other): 
             dtype(other.dtype), device(other.device), __tensor(other.__tensor) {
 
-        std::visit([&](auto& tensor, const auto& other) {
-            tensor.dtype = other.dtype; 
-        }, this->__tensor, other.__tensor);
-
-        printf("aaaaaa\n");
+        //std::visit([&](auto& tensor, const auto& other) {
+        //    tensor.dtype = other.dtype; 
+        //}, this->__tensor, other.__tensor);
     }
 
     // move ctor
     NdlTensor(const NdlTensor&& other) noexcept:
-            dtype(other.dtype), device(other.device), __tensor(other.__tensor) {
-
-        std::visit([&](auto& tensor) {
-            tensor.dtype = other.dtype; 
-        }, __tensor);
-
-        printf("bbbbbbb\n");
+            dtype(other.dtype), device(other.device), 
+            __tensor(std::move(other.__tensor)) {
+        printf("aaaaa\n");
+        //std::visit([&](auto& tensor) {
+        //    tensor.dtype = other.dtype; 
+        //}, __tensor);
     }
 
     // cpy op= 
@@ -94,12 +91,6 @@ public:
             return tensor.strides();
         }, __tensor);
     }
-
-    //inline BackendType device() const {
-    //    return std::visit([](auto& tensor) -> BackendType {
-    //        return tensor.device();
-    //    }, __tensor);
-    //}
 
     // operator+ for adding another NdlTensor
     NdlTensor operator+(NdlTensor& other) {
@@ -271,10 +262,23 @@ public:
         }, this->__tensor);
     }
 
-    NdlTensor rotary_emb() {
+    NdlTensor rotary_emb(int start_pos) {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            return tensor.rotary_emb();
+            return tensor.rotary_emb(start_pos);
         }, this->__tensor);
+    }
+
+    NdlTensor embedding(const NdlTensor& index) {
+        return std::visit([&](auto& tensor, const auto& index) -> NdlTensor {
+            using RhsType = std::decay_t<decltype(index)>;
+            if constexpr (std::is_same_v<RhsType, Tensor<float>>) {
+                return tensor.embedding(index);
+            } else {
+                throw std::invalid_argument("currently, embedding only support float index");
+            }
+
+            return *this;
+        }, this->__tensor, index.__tensor);
     }
 
     NdlTensor softmax() {
@@ -292,6 +296,12 @@ public:
     NdlTensor transpose(std::vector<int> axes) {
         return std::visit([&](auto& tensor) -> NdlTensor {
             return tensor.transpose(axes);
+        }, this->__tensor);
+    }
+
+    NdlTensor reshape(std::vector<int32_t> new_shape) {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            return tensor.reshape(new_shape);
         }, this->__tensor);
     }
 
@@ -321,6 +331,8 @@ public:
 
         return result;
     }
+
+
 
 public:
     DataType dtype;
