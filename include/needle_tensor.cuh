@@ -45,7 +45,6 @@ public:
     NdlTensor(const NdlTensor&& other) noexcept:
             dtype(other.dtype), device(other.device), 
             __tensor(std::move(other.__tensor)) {
-        printf("aaaaa\n");
         //std::visit([&](auto& tensor) {
         //    tensor.dtype = other.dtype; 
         //}, __tensor);
@@ -162,6 +161,32 @@ public:
         }, this->__tensor);
     }
 
+    // operator/ for adding another NdlTensor
+    NdlTensor operator/(NdlTensor& other) {
+        return std::visit([&](auto&& lhs, auto&& rhs) -> NdlTensor {
+            using LhsType = std::decay_t<decltype(lhs)>;
+            using RhsType = std::decay_t<decltype(rhs)>;
+
+            // 确保只有相同类型的 Tensor 能相加
+            if constexpr (std::is_same_v<LhsType, RhsType>) {
+                auto result = lhs / rhs;
+                return NdlTensor(result);
+            } else {
+                throw std::invalid_argument("Tensor types must match");
+            }
+            return *this;
+        }, this->__tensor, other.__tensor);
+    }
+
+    // operator/ for adding a scalar
+    template<typename ScalarType>
+    NdlTensor operator/(ScalarType scalar) {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            auto result = tensor / scalar;
+            return NdlTensor(result);
+        }, this->__tensor);
+    }
+
     static NdlTensor arange(int32_t start, int32_t end, int32_t step=1,
                      DataType dtype=DataType::FLOAT,
                      BackendType backend=BackendType::CUDA) {
@@ -268,6 +293,23 @@ public:
         }, this->__tensor);
     }
 
+    NdlTensor slice(std::vector<py::object> indices) {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            return tensor.slice(indices);
+        }, this->__tensor);
+    }
+
+    void setitem(std::vector<py::object> indices, NdlTensor& other) {
+        std::visit([&](auto& self, auto& tensor) {
+            if constexpr (std::is_same_v<std::decay_t<decltype(self)>, 
+                          std::decay_t<decltype(tensor)>>) {
+                self.setitem(indices, tensor);
+            } else {
+                throw std::runtime_error("Mismatched tensor types in setitem.");
+            }
+        }, this->__tensor, other.__tensor);
+    }
+
     NdlTensor embedding(const NdlTensor& index) {
         return std::visit([&](auto& tensor, const auto& index) -> NdlTensor {
             using RhsType = std::decay_t<decltype(index)>;
@@ -305,6 +347,12 @@ public:
         }, this->__tensor);
     }
 
+    void contiguous() {
+        std::visit([&](auto& tensor) {
+            tensor.contiguous();
+        }, this->__tensor);
+    }
+
     NdlTensor broadcast_to(std::vector<int32_t> shape) {
         NdlTensor result;
 
@@ -331,8 +379,6 @@ public:
 
         return result;
     }
-
-
 
 public:
     DataType dtype;

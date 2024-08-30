@@ -90,6 +90,7 @@ private:
 
         std::vector<py::slice> slices;
 
+        // traverse indices, find number of '...' in slice
         for(size_t i = 0; i < _indices.size(); ++i) {
             if (py::isinstance<py::ellipsis>(_indices[i])) {
                 ellipsis_index = i;
@@ -110,20 +111,25 @@ private:
         bool ellipsis_add1 = false;
 
         for(int i=0; i<num_dims; ++i) {
-            if(i>=ellipsis_start and i<=ellipsis_end) {
+            if(ellipsis_cnt>0 and i>=ellipsis_start and i<=ellipsis_end) {
                 slices.push_back(py::slice(0, _org_shape[i], 1));
                 if(!ellipsis_add1) { 
                     slice_index++;
                     ellipsis_add1=true; 
                 }
             } else {
-                auto slice = py::cast<py::slice>(_indices[slice_index]);
-                slices.push_back(slice);
+                if(slice_index >= _indices.size()) {
+                    slices.push_back(py::slice(0, _org_shape[i], 1));
+                } else {
+                    auto slice = py::cast<py::slice>(_indices[slice_index]);
+                    slices.push_back(slice);
+                }
+
                 slice_index++;
             }
         }
 
-        for(int i=0; i<num_dims; ++i) {
+        for(int i=0; i<slices.size(); ++i) {
             auto pos_slice = __process_slice(slices[i], _org_shape[i]);
             _pos_slices.push_back(pos_slice);
             _new_shape[i] = static_cast<size_t>(pos_slice[3]);
@@ -131,7 +137,7 @@ private:
         }
 
         #ifdef DEBUG
-        for(int i=0; i<num_dims; ++i) {
+        for(int i=0; i<_pos_slices.size(); ++i) {
                 printf("Slice %d: Start: %ld, Stop: %ld, Step: %ld, Length: %ld\n", 
                        i, _pos_slices[i][0], _pos_slices[i][1], 
                        _pos_slices[i][2], _pos_slices[i][3]);

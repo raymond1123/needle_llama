@@ -12,6 +12,7 @@
 #include "init/init_basic.cuh"
 #include "init/initial.hpp"
 
+
 void bind_tensor(py::module& m) {
     py::class_<NdlTensor> tensor_class(m, "Tensor");
     tensor_class
@@ -28,6 +29,8 @@ void bind_tensor(py::module& m) {
         .def("strides", &NdlTensor::strides)
         .def("matmul", &NdlTensor::matmul)
         .def("rms_norm", &NdlTensor::rms_norm)
+        .def("__getitem__", &NdlTensor::slice)
+        .def("__setitem__", &NdlTensor::setitem)
         .def("rotary_emb", &NdlTensor::rotary_emb)
         .def("summation", py::overload_cast<const std::vector<int>&>(&NdlTensor::summation),
                         py::arg("axes"))
@@ -36,6 +39,7 @@ void bind_tensor(py::module& m) {
 
         .def("transpose", &NdlTensor::transpose)
         .def("reshape", &NdlTensor::reshape)
+        .def("contiguous", &NdlTensor::contiguous)
 
         .def("__add__", [](NdlTensor& a, NdlTensor& b) {
             return a + b;
@@ -43,6 +47,14 @@ void bind_tensor(py::module& m) {
 
         .def("__add__", [](NdlTensor& a, float scalar) {
             return a + scalar;
+        }, py::is_operator())
+
+        .def("__truediv__", [](NdlTensor& a, NdlTensor& b) {
+            return a / b;
+        }, py::is_operator())
+
+        .def("__truediv__", [](NdlTensor& a, float scalar) {
+            return a / scalar;
         }, py::is_operator())
 
         // 反向的 operator+，处理 float + NdlTensor

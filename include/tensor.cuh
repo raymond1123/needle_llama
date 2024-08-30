@@ -714,17 +714,24 @@ Tensor<Dtype> Tensor<Dtype>::embedding(const Tensor<float>& index) {
 template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::reshape(std::vector<int32_t> new_shape) {
     assert(__check_type() && "cpu does not support half data type");
-    size_t new_size = 1;
-    for (auto &s: new_shape)
-        new_size *= s;
-    assert(new_size==__cached_data->size() && "reshape input new_shape is not legal");
+    int neg_axis = -1;
+    size_t input_size = 1;
+
+    for(int i=0; i<new_shape.size(); ++i) {
+        if(new_shape[i]==-1) neg_axis = i; 
+        else input_size *= new_shape[i];
+    }
+
+    if(neg_axis != -1)
+        new_shape[neg_axis] = size()/input_size;
+
+    //assert(new_size==__cached_data->size() && "reshape input new_shape is not legal");
 
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<ReshapeOp<Dtype>>(new_shape, OpType::Reshape);
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
-    //printf("===============+\n");
 
     return (*op)(op, inputs, __backend);
 }
@@ -993,12 +1000,12 @@ void Tensor<Dtype>::setitem(std::vector<py::object> indices, Tensor& other) {
     // assign __cached_dat a new pointer
     if (__backend == BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
-            __cached_data.reset(new CpuTensor<Dtype>(op, inputs));
+            __cached_data.reset(new CpuTensor<Dtype>(DataType::FLOAT, op, inputs));
         } else {
             throw std::runtime_error("cpu does not support half data type");
         }
     } else if (__backend == BackendType::CUDA) {
-        __cached_data.reset(new CudaTensor<Dtype>(op, inputs));
+        __cached_data.reset(new CudaTensor<Dtype>(DataType::FLOAT, op, inputs));
     } else {
         throw std::runtime_error("Unsupported backend type.");
     }
