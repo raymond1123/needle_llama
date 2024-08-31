@@ -40,6 +40,7 @@ void bind_tensor(py::module& m) {
         .def("transpose", &NdlTensor::transpose)
         .def("reshape", &NdlTensor::reshape)
         .def("contiguous", &NdlTensor::contiguous)
+        .def("silu", &NdlTensor::silu)
 
         .def("__add__", [](NdlTensor& a, NdlTensor& b) {
             return a + b;
@@ -163,7 +164,7 @@ void bind_module(py::module& m) {
     // 绑定 ModuleList 类
     py::class_<ModuleList>(nn, "ModuleList")
         .def(py::init<>())
-        .def("add_module", &ModuleList::add_module)
+        .def("append", &ModuleList::append)
         .def("__getitem__", &ModuleList::operator[])
         .def("__len__", &ModuleList::size)
         .def("__iter__", [](ModuleList &self) {

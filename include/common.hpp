@@ -87,7 +87,8 @@ enum class OpType: int {
     RMSNorm = 33,
     RotaryEmb= 34,
     Softmax= 35,
-    Embedding = 36
+    Embedding = 36,
+    Silu = 37
 };
 
 enum class DataType: int{

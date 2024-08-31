@@ -353,6 +353,12 @@ public:
         }, this->__tensor);
     }
 
+    NdlTensor silu() {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            return tensor.silu();
+        }, this->__tensor);
+    }
+
     NdlTensor broadcast_to(std::vector<int32_t> shape) {
         NdlTensor result;
 

@@ -2,8 +2,6 @@
 #define __SILU_OP__
 
 #include "ops/generic_op.cuh"
-#include "ops/bp/permute.cuh"
-#include "ops/bp/broadcast.cuh"
 
 template<typename Dtype> class CpuTensor;
 template<typename Dtype> class CudaTensor;
@@ -11,24 +9,14 @@ template<typename Dtype> class CudaTensor;
 template<typename Dtype>
 class SiluKernel {
 public:
-    __device__ void operator()(size_t n,
-                               const int reduce_size,
+    __device__ void operator()(const size_t n,
                                const Dtype* a, 
                                Dtype* out) {
 
         size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
         if(tx >= n) return;
-
-        size_t offset = tx*reduce_size;
-        Dtype tmp = 0;
-
-        for(size_t i=0; i<reduce_size; ++i) {
-            tmp += expf(a[offset+i]);
-        }
-
-        for(size_t i=0; i<reduce_size; ++i) {
-            out[offset+i] = expf(a[offset+i]) / tmp;
-        }
+        Dtype sigmoid = 1.0 / (1.0 + expf(-a[tx]));
+        out[tx] = a[tx] * sigmoid;
     }
 };
 
@@ -36,38 +24,27 @@ public:
 template<>
 class SiluKernel<__half> {
 public:
-    __device__ void operator()(size_t n,
-                               const int reduce_size,
+    __device__ void operator()(const size_t n,
                                const __half* a, 
                                __half* out) {
 
         size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
         if(tx >= n) return;
-
-        size_t offset = tx*reduce_size;
-        __half tmp = 0, safe_max = a[offset];
-
-        for(size_t i=1; i<reduce_size; ++i) {
-            __half other = a[offset+i];
-            if(__hgt(other, safe_max))
-                safe_max = other; 
-        }
-
-        for(size_t i=0; i<reduce_size; ++i) {
-            tmp += (hexp(a[offset+i]-safe_max));
-        }
-
-        for(size_t i=0; i<reduce_size; ++i) {
-            out[offset+i] = hexp(a[offset+i]-safe_max) / tmp;
-        }
+        //out[tx] = a[tx]*(1+1/hexp(-a[tx]));
+        __half one = __float2half(1.0f);           
+        __half neg_a = __hneg(a[tx]);              // -a[tx]
+        __half exp_neg_a = hexp(neg_a);            // exp(-a[tx])
+        __half denominator = __hadd(one, exp_neg_a); // 1 + hexp(-a[tx])
+        __half sigmoid_a = hrcp(denominator); // 1 / (1+hexp(-a[tx]))
+        out[tx] = __hmul(a[tx], sigmoid_a);        // 计算 a[tx] * sigmoid(a[tx])
     }
 };
 
 template<typename Dtype>
 __global__ void __launch_bounds__(kBlockSize)
-ApplySilu(size_t n, const int reduce_size, const Dtype* a, Dtype* out) {
+ApplySilu(const size_t n, const Dtype* a, Dtype* out) {
     auto functor = SiluKernel<Dtype>();
-    functor(n, reduce_size, a, out);
+    functor(n, a, out);
 }
 
 template<typename Dtype>
@@ -76,17 +53,13 @@ protected:
     using cached_data_type = std::shared_ptr<BaseTensor<Dtype>>;
 
 public:
-    SiluOp(OpType op_type): 
-            GenericOp<Dtype>(op_type), _num_blocks(0) {}
+    SiluOp(OpType op_type): GenericOp<Dtype>(op_type), _num_blocks(0) {}
 
-    /* only can handle shape=[1,1,num_head, head_dim]*/
     virtual cached_data_type compute(std::vector<cached_data_type> inputs) override {
 
         assert(inputs.size()==1 && "input number of softmax must be 1");
 
         std::vector<int32_t> input_shape = inputs[0]->shape();
-        int shape_len = input_shape.size();
-
         cached_data_type cached_data = __create_cached_data(input_shape,
                                                             DataType::FLOAT, 
                                                             inputs[0]->device());

@@ -12,7 +12,7 @@ public:
     ModuleList() = default;
 
     // 添加模块的方法
-    void add_module(std::shared_ptr<Module> module) {
+    void append(std::shared_ptr<Module> module) {
         modules.push_back(module);
     }
 

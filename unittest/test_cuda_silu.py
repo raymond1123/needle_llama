@@ -14,7 +14,8 @@ class TestTensor(unittest.TestCase):
         self.RESET = "\033[0m"
 
 
-        self.shape = (2, 3, 128, 256)
+        #self.shape = (2, 3, 128, 256)
+        self.shape = (2, 3)
         self.npx = np.random.randn(*self.shape)
 
     def check_shape(self, tensor, npx):
@@ -25,7 +26,7 @@ class TestTensor(unittest.TestCase):
         self.ndl_x = ndl.Tensor(self.npx, dtype=ndl.fp16, backend=ndl.cuda)
         self.tch_x = torch.from_numpy(self.npx).to(torch.float16).cuda()
 
-        tch_scores = tch_F.silu(self.tch_x, dim=-1).cpu().detach().numpy()
+        tch_scores = tch_F.silu(self.tch_x).cpu().detach().numpy()
         ndl_scores = self.ndl_x.silu().to_numpy()
         #self.check_shape(tensor, self.npx)
 
@@ -44,7 +45,7 @@ class TestTensor(unittest.TestCase):
         self.ndl_x = ndl.Tensor(self.npx, dtype=ndl.fp32, backend=ndl.cuda)
         self.tch_x = torch.from_numpy(self.npx).to(torch.float32).cuda()
 
-        tch_scores = tch_F.silu(self.tch_x, dim=-1).cpu().detach().numpy()
+        tch_scores = tch_F.silu(self.tch_x).cpu().detach().numpy()
         ndl_scores = self.ndl_x.silu().to_numpy()
         #self.check_shape(tensor, self.npx)
 

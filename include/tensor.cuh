@@ -110,6 +110,7 @@ public:
     Tensor padding(std::vector<int> axes);
     Tensor dilate(uint32_t dilation, std::vector<int> axes);
     Tensor relu();
+    Tensor silu();
     Tensor tanh();
     Tensor log();
     Tensor exp();
@@ -915,6 +916,18 @@ template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::relu() {
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<ReluOp<Dtype>>(OpType::Relu);
+
+    std::vector<cached_data_type> inputs;
+    inputs.push_back(__cached_data);
+    //printf("===============+\n");
+
+    return (*op)(op, inputs, __backend);
+}
+
+template<typename Dtype>
+Tensor<Dtype> Tensor<Dtype>::silu() {
+    std::shared_ptr<GenericOp<Dtype>> op = 
+        std::make_shared<SiluOp<Dtype>>(OpType::Silu);
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
