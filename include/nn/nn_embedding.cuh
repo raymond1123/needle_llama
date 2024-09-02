@@ -51,6 +51,10 @@ public:
         this->_params[0] = token_emb;
     }
 
+    inline py::array_t<float> see_weight() {
+        return token_emb->to_numpy();
+    }
+
 public:
     param_type token_emb; // shape=(_in_features, _out_features)
 

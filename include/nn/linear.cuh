@@ -58,12 +58,12 @@ public:
 
     NdlTensor forward(const NdlTensor& tensor) final {
 
-        auto x = tensor;
-        int in_feat_idx = x.shape().size()- 1;
+        //auto x = tensor;
+        int in_feat_idx = tensor.shape().size()- 1;
 
         /* debug */
-        for(int i=0; i<x.shape().size(); ++i) {
-            printf("x.shape[%d]=%d,", i, x.shape()[i]);
+        for(int i=0; i<tensor.shape().size(); ++i) {
+            printf("tensor.shape[%d]=%d,", i, tensor.shape()[i]);
         }
         printf("\n");
 
@@ -73,10 +73,10 @@ public:
         printf("\n");
         /* debug done */
 
-        assert(x.shape()[in_feat_idx]==_in_features &&"shape of input tensor and weight does not match");
+        assert(tensor.shape()[in_feat_idx]==_in_features &&"shape of input tensor and weight does not match");
 
         const auto& w = *weight;
-        auto out = x.matmul(w);
+        auto out = tensor.matmul(w);
 
         if(_need_bias) {
             out += bias->broadcast_to(out.shape());

@@ -38,9 +38,10 @@ public:
 template<>
 class NormKernel<__half> {
 public:
+    /* trans a to fp32, or fp16 value will overflow */
     __device__ void operator()(size_t n,
-                               int reduce_size,
-                               __half eps,
+                               size_t reduce_size,
+                               float eps, 
                                const __half* a, 
                                __half* out) {
 
@@ -48,21 +49,22 @@ public:
         if(tx >= n) return;
 
         size_t offset = tx*reduce_size;
-        __half tmp = 0;
+        float tmp = 0;
 
         for(size_t i=0; i<reduce_size; ++i) {
-            tmp = __hadd(tmp, __hmul(a[offset+i], a[offset+i]));
-            tmp = __hadd(tmp, eps); 
+            float a_fp32 = __half2float(a[offset+i]); 
+            tmp += powf(a_fp32, 2);
         }
 
-        tmp = __hdiv(tmp, static_cast<__half>(reduce_size)); 
-        tmp = hrsqrt(__hadd(eps, tmp));
+        tmp = rsqrtf(tmp / static_cast<float>(reduce_size) + eps);
 
         for(size_t i=0; i<reduce_size; ++i) {
-            out[offset+i] = __hmul(tmp, a[offset+i]);
+            float a_fp32 = __half2float(a[offset+i]); 
+            out[offset+i] = __float2half(a_fp32 * tmp);
         }
     }
 };
+
 
 template<typename Dtype>
 __global__ void __launch_bounds__(kBlockSize)

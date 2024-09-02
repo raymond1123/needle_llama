@@ -14,8 +14,10 @@ class TestTensor(unittest.TestCase):
         self.RED = "\033[91m"
         self.RESET = "\033[0m"
 
-        self.shape = (10, 5)
-        self.idx = np.array([[0,1],[2,3],[0,2]])
+        #self.shape = (32000, 512)
+        #self.shape = (320, 512)
+        self.shape = (32000, 512)
+        self.idx = np.array([[0,1],[2,3],[4,2],[233,325]])
 
     def check_shape(self, tensor, npx):
         self.assertEqual(tensor.shape, npx.shape)
@@ -31,7 +33,6 @@ class TestTensor(unittest.TestCase):
 
         ndl_emb = ndl_nn.Embedding(*self.shape, dtype=ndl.fp16, device=ndl.cuda)
         ndl_emb.set_params(np_emb, dtype=ndl.fp16, device=ndl.cuda)
-
 
         tch_result = tch_emb(tch_idx).cpu().detach().numpy()
         ndl_result = ndl_emb(ndl_idx).to_numpy()

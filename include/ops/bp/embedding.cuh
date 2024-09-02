@@ -13,24 +13,28 @@ class EmbeddingKernel {
 public:
     __device__ void operator()(const int n,
                                const int dim,
+                               const int tblock,
                                const Dtype* emb, 
                                const float* idx, 
                                Dtype* out) {
 
         size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
-        if(tx >= n) return;
-
         size_t offset = int(idx[blockIdx.x])*dim;
-        out[tx] = emb[threadIdx.x+offset];
+
+        for(int i=0; i<tblock; ++i) {
+            int idx = tx*tblock+i;
+            if(idx >= n) return;
+            out[idx] = emb[offset+threadIdx.x*tblock+i];
+        }
     }
 };
 
 template<typename Dtype>
 __global__ void __launch_bounds__(kBlockSize)
-ApplyEmbedding(const size_t n, const int dim, 
+ApplyEmbedding(const size_t n, const int dim, int tblock,
                const Dtype* emb, const float* idx, Dtype* out) {
     auto functor = EmbeddingKernel<Dtype>();
-    functor(n, dim, emb, idx, out);
+    functor(n, dim, tblock, emb, idx, out);
 }
 
 template<typename Dtype>
@@ -60,7 +64,11 @@ public:
         //cudaError_t err = _get_num_blocks();
         //assert(err==cudaSuccess && "get_num_blocks in SummationOp failed");
         _num_blocks = batch_size*seq_len;
-        ApplyEmbedding<Dtype><<<_num_blocks, dim, 0>>>(cached_data->size(), dim,
+        printf("batch_size=%d, seq_len=%d, nnnnnnum_blocks=%d, dim=%d\n", 
+                batch_size, seq_len, _num_blocks, dim);
+
+        int tblock = (dim+kBlockSize-1)/kBlockSize;
+        ApplyEmbedding<Dtype><<<_num_blocks, kBlockSize, 0>>>(cached_data->size(), dim, tblock,
                                                        inputs[0]->cached_ptr(),
                                                        _index->cached_ptr(),
                                                        cached_data->cached_ptr());

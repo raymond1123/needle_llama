@@ -34,21 +34,12 @@ public:
 
     // cpy ctor
     NdlTensor(const NdlTensor& other): 
-            dtype(other.dtype), device(other.device), __tensor(other.__tensor) {
-
-        //std::visit([&](auto& tensor, const auto& other) {
-        //    tensor.dtype = other.dtype; 
-        //}, this->__tensor, other.__tensor);
-    }
+            dtype(other.dtype), device(other.device), __tensor(other.__tensor) {}
 
     // move ctor
     NdlTensor(const NdlTensor&& other) noexcept:
             dtype(other.dtype), device(other.device), 
-            __tensor(std::move(other.__tensor)) {
-        //std::visit([&](auto& tensor) {
-        //    tensor.dtype = other.dtype; 
-        //}, __tensor);
-    }
+            __tensor(std::move(other.__tensor)) {}
 
     // cpy op= 
     NdlTensor& operator=(const NdlTensor& other) {
@@ -65,8 +56,8 @@ public:
     NdlTensor& operator=(NdlTensor&& other) noexcept {
         if (this == &other) return *this;
 
-        this->dtype = std::move(other.dtype);
-        this->device = std::move(other.device);
+        this->dtype = other.dtype;
+        this->device = other.device;
         this->__tensor = std::move(other.__tensor);
 
         return *this;
@@ -79,7 +70,7 @@ public:
         }, __tensor);
     }
 
-    inline std::vector<int32_t> shape() { 
+    inline std::vector<int32_t> shape() const { 
         return std::visit([](auto& tensor) -> std::vector<int32_t> {
             return tensor.shape();
         }, __tensor);
@@ -99,8 +90,11 @@ public:
 
             // 确保只有相同类型的 Tensor 能相加
             if constexpr (std::is_same_v<LhsType, RhsType>) {
-                auto result = lhs + rhs;
-                return NdlTensor(result);
+                //auto result = lhs + rhs;
+                auto result = NdlTensor(lhs+rhs);
+                result.dtype = lhs.dtype;
+                result.device = lhs.device;
+                return result;
             } else {
                 throw std::invalid_argument("Tensor types must match");
             }
@@ -130,8 +124,12 @@ public:
     template<typename ScalarType>
     NdlTensor operator+(ScalarType scalar) {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            auto result = tensor + scalar;
-            return NdlTensor(result);
+            //auto result = tensor + scalar;
+            auto result = NdlTensor(tensor+scalar);
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
+
         }, this->__tensor);
     }
 
@@ -143,8 +141,12 @@ public:
 
             // 确保只有相同类型的 Tensor 能相加
             if constexpr (std::is_same_v<LhsType, RhsType>) {
-                auto result = lhs - rhs;
-                return NdlTensor(result);
+                //auto result = lhs - rhs;
+                auto result = NdlTensor(lhs-rhs);
+                result.dtype = lhs.dtype;
+                result.device = lhs.device;
+
+                return result;
             } else {
                 throw std::invalid_argument("Tensor types must match");
             }
@@ -156,8 +158,43 @@ public:
     template<typename ScalarType>
     NdlTensor operator-(ScalarType scalar) {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            auto result = tensor - scalar;
-            return NdlTensor(result);
+            //auto result = tensor - scalar;
+            auto result = NdlTensor(tensor - scalar);
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
+        }, this->__tensor);
+    }
+
+    // operator* for adding another NdlTensor
+    NdlTensor operator*(NdlTensor& other) {
+        return std::visit([&](auto& lhs, auto& rhs) -> NdlTensor {
+            using LhsType = std::decay_t<decltype(lhs)>;
+            using RhsType = std::decay_t<decltype(rhs)>;
+
+            // 确保只有相同类型的 Tensor 能相加
+            if constexpr (std::is_same_v<LhsType, RhsType>) {
+                //auto result = lhs * rhs;
+                auto result = NdlTensor(lhs*rhs);
+                result.dtype = lhs.dtype;
+                result.device = lhs.device;
+                return result;
+            } else {
+                throw std::invalid_argument("Tensor types must match");
+            }
+            return *this;
+        }, this->__tensor, other.__tensor);
+    }
+
+    // operator* for adding a scalar
+    template<typename ScalarType>
+    NdlTensor operator*(ScalarType scalar) {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            //auto result = tensor * scalar;
+            auto result = NdlTensor(tensor*scalar);
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
         }, this->__tensor);
     }
 
@@ -169,8 +206,11 @@ public:
 
             // 确保只有相同类型的 Tensor 能相加
             if constexpr (std::is_same_v<LhsType, RhsType>) {
-                auto result = lhs / rhs;
-                return NdlTensor(result);
+                //auto result = lhs / rhs;
+                auto result = NdlTensor(lhs/rhs);
+                result.dtype = lhs.dtype;
+                result.device = lhs.device;
+                return result;
             } else {
                 throw std::invalid_argument("Tensor types must match");
             }
@@ -182,8 +222,11 @@ public:
     template<typename ScalarType>
     NdlTensor operator/(ScalarType scalar) {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            auto result = tensor / scalar;
-            return NdlTensor(result);
+            //auto result = tensor / scalar;
+            auto result = NdlTensor(tensor/scalar);
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
         }, this->__tensor);
     }
 
@@ -260,14 +303,17 @@ public:
     }
 
     // matmul another NdlTensor
-    NdlTensor matmul(const NdlTensor& other) {
-        return std::visit([&](auto& lhs, auto& rhs) -> NdlTensor {
+    NdlTensor matmul(const NdlTensor& other) const {
+        printf("zzzzzz\n");
+        return std::visit([&](const auto& lhs, const auto& rhs) -> NdlTensor {
             using LhsType = std::decay_t<decltype(lhs)>;
             using RhsType = std::decay_t<decltype(rhs)>;
 
             if constexpr (std::is_same_v<LhsType, RhsType>) {
-                auto result = lhs.matmul(rhs);
-                return NdlTensor(result);
+                auto result = NdlTensor(lhs.matmul(rhs));
+                result.dtype = rhs.dtype;
+                result.device = rhs.device;
+                return result;
             } else {
                 throw std::invalid_argument("Tensor types must match");
             }
@@ -277,25 +323,39 @@ public:
 
     NdlTensor summation(const std::vector<int>& axes) {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            return tensor.summation(axes);
+            //return tensor.summation(axes);
+            auto result = NdlTensor(tensor.summation(axes));
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
         }, this->__tensor);
     }
 
     NdlTensor rms_norm() {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            return tensor.rms_norm();
+            auto result = NdlTensor(tensor.rms_norm());
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
         }, this->__tensor);
     }
 
     NdlTensor rotary_emb(int start_pos) {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            return tensor.rotary_emb(start_pos);
+            auto result = NdlTensor(tensor.rotary_emb(start_pos));
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+
+            return result;
         }, this->__tensor);
     }
 
     NdlTensor slice(std::vector<py::object> indices) {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            return tensor.slice(indices);
+            auto result = NdlTensor(tensor.slice(indices));
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
         }, this->__tensor);
     }
 
@@ -314,7 +374,10 @@ public:
         return std::visit([&](auto& tensor, const auto& index) -> NdlTensor {
             using RhsType = std::decay_t<decltype(index)>;
             if constexpr (std::is_same_v<RhsType, Tensor<float>>) {
-                return tensor.embedding(index);
+                auto result = NdlTensor(tensor.embedding(index));
+                result.dtype = tensor.dtype;
+                result.device = tensor.device;
+                return result;
             } else {
                 throw std::invalid_argument("currently, embedding only support float index");
             }
@@ -325,25 +388,37 @@ public:
 
     NdlTensor softmax() {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            return tensor.softmax();
+            auto result = NdlTensor(tensor.softmax());
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
         }, this->__tensor);
     }
 
     NdlTensor summation() {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            return tensor.summation();
+            auto result = NdlTensor(tensor.summation());
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
         }, this->__tensor);
     }
     
     NdlTensor transpose(std::vector<int> axes) {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            return tensor.transpose(axes);
+            auto result = NdlTensor(tensor.transpose(axes));
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
         }, this->__tensor);
     }
 
     NdlTensor reshape(std::vector<int32_t> new_shape) {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            return tensor.reshape(new_shape);
+            auto result = NdlTensor(tensor.reshape(new_shape));
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
         }, this->__tensor);
     }
 
@@ -355,20 +430,24 @@ public:
 
     NdlTensor silu() {
         return std::visit([&](auto& tensor) -> NdlTensor {
-            return tensor.silu();
+            auto result = NdlTensor(tensor.silu());
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
+
         }, this->__tensor);
     }
 
     NdlTensor broadcast_to(std::vector<int32_t> shape) {
-        NdlTensor result;
 
-        std::visit([&](auto& tensor) {
+        return std::visit([&](auto& tensor) {
             using T = std::decay_t<decltype(tensor)>;
             // Broadcast this_tensor to the specified shape and assign it to result.__tensor
-            result.__tensor = tensor.broadcast_to(shape);
+            auto result = NdlTensor(tensor.broadcast_to(shape));
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
         }, this->__tensor);
-
-        return result;
     }
 
     NdlTensor half() {
@@ -379,7 +458,7 @@ public:
             if constexpr (std::is_same_v<T, Tensor<float>>) {
                 result.__tensor = tensor.half();
                 result.dtype = DataType::HALF;
-                result.device = tensor.device();
+                result.device = tensor.device;
             }
         }, this->__tensor);
 

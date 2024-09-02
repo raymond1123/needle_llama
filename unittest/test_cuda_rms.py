@@ -47,8 +47,8 @@ class TestTensor(unittest.TestCase):
         self.tch_rms.cuda().half()
         tch_result = self.tch_rms(tch_x).cpu().detach().numpy()
 
-        ndl_result = ndl_x.rms_norm().to_numpy()
-        err = np.max(np.abs(ndl_result-tch_result))
+        ndl_result = ndl_x.rms_norm()
+        err = np.max(np.abs(ndl_result.to_numpy()-tch_result))
         print(f'{err=}')
 
 

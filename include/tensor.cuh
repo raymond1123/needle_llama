@@ -54,10 +54,10 @@ public:
     inline py::array_t<float> to_numpy() { return __cached_data->to_numpy(); }
     inline void from_buffer() { __cached_data->from_buffer(); }
     inline py::array_t<Dtype> grad() { return __cached_data->grad->to_numpy(); }
-    inline std::vector<int32_t> shape() { return __cached_data->shape(); }
+    inline std::vector<int32_t> shape() const { return __cached_data->shape(); }
     inline std::vector<int32_t> strides() { return __cached_data->strides(); }
     inline size_t offset() { return __cached_data->offset(); }
-    inline BackendType device() const {return __backend;}
+    //inline BackendType device() const {return __backend;}
     virtual inline size_t size() {return __cached_data->size();};
 
     inline Dtype* cached_ptr() {return __cached_data->cached_ptr();}
@@ -91,7 +91,7 @@ public:
     Tensor op_pow(Tensor& other);
     Tensor op_pow(const Dtype scalar);
 
-    Tensor matmul(const Tensor& other);
+    Tensor matmul(const Tensor& other) const;
     Tensor embedding(const Tensor<float>& other);
 
     Tensor& operator+=(const Tensor& other);
@@ -129,7 +129,7 @@ private:
     bool __check_type() {
         bool is_half=false;
         if constexpr (std::is_same_v<Dtype, __half>) is_half = true;
-        if (is_half && __backend==BackendType::CPU) return false;
+        if (is_half && device==BackendType::CPU) return false;
         return true;
     }
 
@@ -148,25 +148,25 @@ private:
 
 public:
     DataType dtype;
+    BackendType device;
 
 private:
     int __tensor_idx;
-    BackendType __backend;
 
     std::shared_ptr<BaseTensor<Dtype>> __cached_data;
 };
 
 template<typename Dtype>
 Tensor<Dtype>::Tensor(std::vector<int32_t> shape, DataType dtype, BackendType backend):
-    dtype(dtype), __backend(backend) {
+    dtype(dtype), device(backend) {
 
-    if (__backend == BackendType::CPU) {
+    if (device== BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
             __cached_data = std::make_shared<CpuTensor<Dtype>>(shape, dtype);
         } else {
             throw std::runtime_error("cpu does not support half data type");
         }
-    } else if (__backend == BackendType::CUDA) {
+    } else if (device== BackendType::CUDA) {
         __cached_data = std::make_shared<CudaTensor<Dtype>>(shape, dtype);
     } else {
         throw std::runtime_error("Unsupported backend type.");
@@ -183,15 +183,15 @@ Tensor<Dtype>::Tensor(std::vector<int32_t> shape, DataType dtype, BackendType ba
 template<typename Dtype>
 Tensor<Dtype>::Tensor(py::array_t<float>& np_array, 
                       DataType dtype,
-                      BackendType backend): dtype(dtype), __backend(backend) {
+                      BackendType backend): dtype(dtype), device(backend) {
 
-    if (__backend == BackendType::CPU) {
+    if (device== BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
             __cached_data = std::make_shared<CpuTensor<Dtype>>(np_array, dtype);
         } else {
             throw std::runtime_error("cpu does not support half data type");
         }
-    } else if (__backend == BackendType::CUDA) {
+    } else if (device== BackendType::CUDA) {
         __cached_data = std::make_shared<CudaTensor<Dtype>>(np_array, dtype);
     } else {
         throw std::runtime_error("Unsupported backend type.");
@@ -211,15 +211,15 @@ template<typename Dtype>
 Tensor<Dtype>::Tensor(DataType dtype, BackendType backend, 
            std::shared_ptr<GenericOp<Dtype>> op,
            std::vector<std::shared_ptr<BaseTensor<Dtype>>> inputs): 
-           dtype(dtype), __backend(backend) {
+           dtype(dtype), device(backend) {
 
-    if (__backend == BackendType::CPU) {
+    if (device== BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
             __cached_data = std::make_shared<CpuTensor<Dtype>>(dtype, op, inputs);
         } else {
             throw std::runtime_error("cpu does not support half data type");
         }
-    } else if (__backend == BackendType::CUDA) {
+    } else if (device== BackendType::CUDA) {
         __cached_data = std::make_shared<CudaTensor<Dtype>>(dtype, op, inputs);
     } else {
         throw std::runtime_error("Unsupported backend type.");
@@ -378,12 +378,11 @@ Tensor<Dtype> Tensor<Dtype>::fill_val(std::vector<int32_t> shape,
 template<typename Dtype>
 Tensor<Dtype>::Tensor(Tensor&& other) noexcept:
         __tensor_idx(other.__tensor_idx), dtype(other.dtype),
-        __backend(other.__backend), 
+        device(other.device), 
         __cached_data(other.__cached_data) {
 
-    //other.__cached_data = nullptr;
-
     __cached_data->tensor_idx = __tensor_idx;
+
     #ifdef DEBUG
     //printf("tensor_idx:%d, original=%p, new=%p, move constructor\n", 
     //       __tensor_idx, &other, this);
@@ -397,8 +396,9 @@ Tensor<Dtype>& Tensor<Dtype>::operator=(Tensor<Dtype>&& other) noexcept {
     if(this == &other) return *this;
 
     this->dtype = other.dtype;
+    this->device = other.device;
     __tensor_idx = other.__tensor_idx;
-    __backend = other.__backend;
+    //device = other.device;
     __cached_data = other.__cached_data;
     __cached_data->tensor_idx = __tensor_idx;
 
@@ -413,7 +413,7 @@ Tensor<Dtype>& Tensor<Dtype>::operator=(Tensor<Dtype>&& other) noexcept {
 
 template<typename Dtype>
 Tensor<Dtype>::Tensor(const Tensor& other): 
-    __cached_data(other.__cached_data), __backend(other.__backend) {
+    __cached_data(other.__cached_data), device(other.device) {
     /*
     __cached_data = other.__cached_data->deep_cpy_cached_data();
     __cached_data->op = other.__cached_data->op;
@@ -435,7 +435,7 @@ Tensor<Dtype>::Tensor(const Tensor& other):
 
 template<typename Dtype>
 Tensor<Dtype>::Tensor(Tensor* other): 
-    __cached_data(other->__cached_data), __backend(other->__backend) {
+    __cached_data(other->__cached_data), device(other->device) {
     /*
     __cached_data = other.__cached_data->deep_cpy_cached_data();
     __cached_data->op = other.__cached_data->op;
@@ -460,7 +460,7 @@ Tensor<Dtype>& Tensor<Dtype>::operator=(const Tensor<Dtype>& other) {
     if(this==&other) return *this;
 
     this->dtype = other.dtype;
-    __backend = other.__backend;
+    device = other.device;
 
     //__cached_data = other.__cached_data->deep_cpy_cached_data();
     //__cached_data->op = other.__cached_data->op;
@@ -487,7 +487,7 @@ std::shared_ptr<BaseTensor<Dtype>> Tensor<Dtype>::deep_cpy_cached_data() {
 template<typename Dtype>
 Tensor<Dtype>& Tensor<Dtype>::operator+=(const Tensor<Dtype>& other) {
     //check same beakend 
-    assert(other.__backend == __backend && 
+    assert(other.device == device&& 
            "backend of operators must be the same");
 
     std::shared_ptr<GenericOp<Dtype>> op = 
@@ -499,7 +499,7 @@ Tensor<Dtype>& Tensor<Dtype>::operator+=(const Tensor<Dtype>& other) {
     inputs.push_back(other.__cached_data);
     //printf("===============+\n");
 
-    __cached_data = (*op)(op, inputs, __backend, true);
+    __cached_data = (*op)(op, inputs, device, true);
 
     return *this;
 }
@@ -507,7 +507,7 @@ Tensor<Dtype>& Tensor<Dtype>::operator+=(const Tensor<Dtype>& other) {
 template<typename Dtype>
 Tensor<Dtype>& Tensor<Dtype>::operator-=(Tensor<Dtype>&& other) {
     //check same beakend 
-    assert(other.__backend == __backend && 
+    assert(other.device == device && 
            "backend of operators must be the same");
 
     std::shared_ptr<GenericOp<Dtype>> op = 
@@ -519,7 +519,7 @@ Tensor<Dtype>& Tensor<Dtype>::operator-=(Tensor<Dtype>&& other) {
     inputs.push_back(other.__cached_data);
     //printf("===============+\n");
 
-    __cached_data = (*op)(op, inputs, __backend, true);
+    __cached_data = (*op)(op, inputs, device, true);
 
     return *this;
 }
@@ -528,7 +528,7 @@ Tensor<Dtype>& Tensor<Dtype>::operator-=(Tensor<Dtype>&& other) {
 template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::operator+(Tensor<Dtype>& other) {
     //check same beakend 
-    assert(other.__backend == __backend && 
+    assert(other.device == device && 
            "backend of operators must be the same");
 
     std::shared_ptr<GenericOp<Dtype>> op = 
@@ -540,7 +540,7 @@ Tensor<Dtype> Tensor<Dtype>::operator+(Tensor<Dtype>& other) {
     inputs.push_back(other.__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -554,14 +554,14 @@ Tensor<Dtype> Tensor<Dtype>::operator+(const Dtype scalar) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 // return = this - other
 template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::operator-(Tensor<Dtype>& other) {
     //check same beakend 
-    assert(other.__backend ==__backend && 
+    assert(other.device==device && 
            "backend of operators must be the same");
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<EWOp<Dtype>>(__cached_data->size(), 
@@ -572,7 +572,7 @@ Tensor<Dtype> Tensor<Dtype>::operator-(Tensor<Dtype>& other) {
     inputs.push_back(other.__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -586,14 +586,14 @@ Tensor<Dtype> Tensor<Dtype>::operator-(const Dtype scalar) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 // return = this * other
 template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::operator*(Tensor<Dtype>& other) {
     //check same beakend 
-    assert(other.__backend ==__backend && 
+    assert(other.device==device && 
            "backend of operators must be the same");
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<EWOp<Dtype>>(__cached_data->size(), 
@@ -604,7 +604,7 @@ Tensor<Dtype> Tensor<Dtype>::operator*(Tensor<Dtype>& other) {
     inputs.push_back(other.__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -618,14 +618,14 @@ Tensor<Dtype> Tensor<Dtype>::operator*(const Dtype scalar) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 // return = this * other
 template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::operator/(Tensor<Dtype>& other) {
     //check same beakend 
-    assert(other.__backend ==__backend && 
+    assert(other.device==device&& 
            "backend of operators must be the same");
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<EWOp<Dtype>>(__cached_data->size(), 
@@ -636,7 +636,7 @@ Tensor<Dtype> Tensor<Dtype>::operator/(Tensor<Dtype>& other) {
     inputs.push_back(other.__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -650,14 +650,14 @@ Tensor<Dtype> Tensor<Dtype>::operator/(const Dtype scalar) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 // return = this * other
 template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::op_pow(Tensor<Dtype>& other) {
     //check same beakend 
-    assert(other.__backend ==__backend && 
+    assert(other.device==device&& 
            "backend of operators must be the same");
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<EWOp<Dtype>>(__cached_data->size(), 
@@ -668,7 +668,7 @@ Tensor<Dtype> Tensor<Dtype>::op_pow(Tensor<Dtype>& other) {
     inputs.push_back(other.__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -682,11 +682,11 @@ Tensor<Dtype> Tensor<Dtype>::op_pow(const Dtype scalar) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
-Tensor<Dtype> Tensor<Dtype>::matmul(const Tensor<Dtype>& other) {
+Tensor<Dtype> Tensor<Dtype>::matmul(const Tensor<Dtype>& other) const {
 
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<MatMulOp<Dtype>>(OpType::MatMul);
@@ -695,7 +695,7 @@ Tensor<Dtype> Tensor<Dtype>::matmul(const Tensor<Dtype>& other) {
     inputs.push_back(__cached_data);
     inputs.push_back(other.__cached_data);
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -709,7 +709,7 @@ Tensor<Dtype> Tensor<Dtype>::embedding(const Tensor<float>& index) {
     inputs.push_back(__cached_data);
     //inputs.push_back(other.__cached_data);
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -734,7 +734,7 @@ Tensor<Dtype> Tensor<Dtype>::reshape(std::vector<int32_t> new_shape) {
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -747,7 +747,7 @@ Tensor<Dtype> Tensor<Dtype>::flip(std::vector<int> axes) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -760,7 +760,7 @@ Tensor<Dtype> Tensor<Dtype>::broadcast_to(std::vector<int32_t> shape) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -773,7 +773,7 @@ Tensor<Dtype> Tensor<Dtype>::permute(std::vector<int> axes) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -786,7 +786,7 @@ Tensor<Dtype> Tensor<Dtype>::transpose(std::vector<int> axes) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -799,7 +799,7 @@ Tensor<Dtype> Tensor<Dtype>::summation(std::vector<int> axes) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -812,7 +812,7 @@ Tensor<Dtype> Tensor<Dtype>::summation() {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -825,7 +825,7 @@ Tensor<Dtype> Tensor<Dtype>::rms_norm() {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -838,7 +838,7 @@ Tensor<Dtype> Tensor<Dtype>::rotary_emb(int start_pos) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -851,7 +851,7 @@ Tensor<Dtype> Tensor<Dtype>::softmax() {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -871,7 +871,7 @@ std::vector<Tensor<Dtype>> Tensor<Dtype>::max(int dim, bool keepdim) {
         }
     }
 
-    auto idx = Tensor<Dtype>::zeros(out_shape, __cached_data->dtype, __backend);
+    auto idx = Tensor<Dtype>::zeros(out_shape, __cached_data->dtype, device);
 
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<MaxOp<Dtype>>(OpType::Max, dim, idx.__cached_data, keepdim);
@@ -880,7 +880,7 @@ std::vector<Tensor<Dtype>> Tensor<Dtype>::max(int dim, bool keepdim) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    Tensor<Dtype> out = (*op)(op, inputs, __backend);
+    Tensor<Dtype> out = (*op)(op, inputs, device);
 
     return {out, idx};
 }
@@ -897,7 +897,7 @@ Tensor<Dtype> Tensor<Dtype>::padding(std::vector<int> axes) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -909,7 +909,7 @@ Tensor<Dtype> Tensor<Dtype>::dilate(uint32_t dilation, std::vector<int> axes) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -921,7 +921,7 @@ Tensor<Dtype> Tensor<Dtype>::relu() {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -933,7 +933,7 @@ Tensor<Dtype> Tensor<Dtype>::silu() {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -945,7 +945,7 @@ Tensor<Dtype> Tensor<Dtype>::tanh() {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -957,7 +957,7 @@ Tensor<Dtype> Tensor<Dtype>::log() {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -969,7 +969,7 @@ Tensor<Dtype> Tensor<Dtype>::exp() {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -981,7 +981,7 @@ Tensor<Dtype> Tensor<Dtype>::neg() {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -994,7 +994,7 @@ Tensor<Dtype> Tensor<Dtype>::slice(std::vector<py::object> indices) {
     inputs.push_back(__cached_data);
     //printf("===============+\n");
 
-    return (*op)(op, inputs, __backend);
+    return (*op)(op, inputs, device);
 }
 
 template<typename Dtype>
@@ -1011,13 +1011,13 @@ void Tensor<Dtype>::setitem(std::vector<py::object> indices, Tensor& other) {
     inputs.push_back(other.__cached_data);
 
     // assign __cached_dat a new pointer
-    if (__backend == BackendType::CPU) {
+    if (device== BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
             __cached_data.reset(new CpuTensor<Dtype>(DataType::FLOAT, op, inputs));
         } else {
             throw std::runtime_error("cpu does not support half data type");
         }
-    } else if (__backend == BackendType::CUDA) {
+    } else if (device== BackendType::CUDA) {
         __cached_data.reset(new CudaTensor<Dtype>(DataType::FLOAT, op, inputs));
     } else {
         throw std::runtime_error("Unsupported backend type.");
@@ -1043,6 +1043,10 @@ Tensor<Dtype> Tensor<Dtype>::make_from_op(const std::shared_ptr<GenericOp<Dtype>
     Tensor<Dtype> new_t = Tensor<Dtype>(inputs[0]->dtype, backend, op, inputs);
 
     new_t.__cached_data = new_t.__cached_data->realized_cached_data();
+
+    //new_t.dtype = inputs[0]->dtype;
+    //new_t.device = inputs[0]->device;
+
     new_t.__cached_data->op = op;
     new_t.__cached_data->inputs = inputs;
 
@@ -1094,9 +1098,9 @@ void Tensor<Dtype>::backward() {
     __print_tensor_info("backward");
 
     std::shared_ptr<Tensor<Dtype>> out_grad = 
-        std::make_shared<Tensor<Dtype>>(__backend);
+        std::make_shared<Tensor<Dtype>>(device);
 
-    if (__backend == BackendType::CPU) {
+    if (device== BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
             out_grad->__cached_data = 
                     std::make_shared<CpuTensor<Dtype>>(__cached_data->shape(), 
@@ -1104,7 +1108,7 @@ void Tensor<Dtype>::backward() {
         } else {
             throw std::runtime_error("cpu does not support half data type");
         }
-    } else if (__backend == BackendType::CUDA) {
+    } else if (device== BackendType::CUDA) {
         out_grad->__cached_data = 
                     std::make_shared<CudaTensor<Dtype>>(__cached_data->shape(),
                                                         __cached_data->dtype);
@@ -1165,14 +1169,14 @@ std::shared_ptr<BaseTensor<Dtype>> Tensor<Dtype>::__sum_grad(
 
     // create grad Tensor
     cached_data_type grad = nullptr;
-    if (__backend == BackendType::CPU) {
+    if (device== BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
             grad = std::make_shared<CpuTensor<Dtype>>(input_grads[0]->shape(), 
                                                       input_grads[0]->dtype);
         } else {
             throw std::runtime_error("cpu does not support half data type");
         }
-    } else if (__backend == BackendType::CUDA) {
+    } else if (device== BackendType::CUDA) {
         grad = std::make_shared<CudaTensor<Dtype>>(input_grads[0]->shape(),
                                                    input_grads[0]->dtype);
     }

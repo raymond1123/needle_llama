@@ -30,6 +30,14 @@ public:
         return modules.size();
     }
 
+    NdlTensor forward(const NdlTensor& x) {
+        NdlTensor result;
+        for(auto&  module: modules)
+            result = module->forward(x);
+
+        return result;
+    }
+
 private:
     std::vector<std::shared_ptr<Module>> modules;
 };
