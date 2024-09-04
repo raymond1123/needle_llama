@@ -29,5 +29,6 @@
 #include "ops/bp/silu.cuh"
 #include "ops/bp/embedding.cuh"
 #include "ops/bp/where.cuh"
+#include "ops/bp/mask.cuh"
 
 #endif

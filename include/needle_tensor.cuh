@@ -230,6 +230,44 @@ public:
         }, this->__tensor);
     }
 
+    // operator== for adding another NdlTensor
+    NdlTensor operator==(NdlTensor& other) {
+        return std::visit([&](auto&& lhs, auto&& rhs) -> NdlTensor {
+            using LhsType = std::decay_t<decltype(lhs)>;
+            using RhsType = std::decay_t<decltype(rhs)>;
+
+            // 确保只有相同类型的 Tensor 能相加
+            if constexpr (std::is_same_v<LhsType, RhsType>) {
+                auto result = NdlTensor(lhs==rhs);
+                result.dtype = lhs.dtype;
+                result.device = lhs.device;
+                return result;
+            } else {
+                throw std::invalid_argument("Tensor types must match");
+            }
+            return *this;
+        }, this->__tensor, other.__tensor);
+    }
+
+    // operator!= for adding another NdlTensor
+    NdlTensor operator!=(NdlTensor& other) {
+        return std::visit([&](auto&& lhs, auto&& rhs) -> NdlTensor {
+            using LhsType = std::decay_t<decltype(lhs)>;
+            using RhsType = std::decay_t<decltype(rhs)>;
+
+            // 确保只有相同类型的 Tensor 能相加
+            if constexpr (std::is_same_v<LhsType, RhsType>) {
+                auto result = NdlTensor(lhs!=rhs);
+                result.dtype = lhs.dtype;
+                result.device = lhs.device;
+                return result;
+            } else {
+                throw std::invalid_argument("Tensor types must match");
+            }
+            return *this;
+        }, this->__tensor, other.__tensor);
+    }
+
     static NdlTensor arange(int32_t start, int32_t end, int32_t step=1,
                      DataType dtype=DataType::FLOAT,
                      BackendType backend=BackendType::CUDA) {

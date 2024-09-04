@@ -99,7 +99,8 @@ public:
 
     Tensor& operator+=(const Tensor& other);
     Tensor& operator-=(Tensor&& other);
-    Tensor<float> operator==(Tensor& other);
+    Tensor<float> operator==(const Tensor& other);
+    Tensor<float> operator!=(const Tensor& other);
 
     Tensor reshape(std::vector<int32_t> new_shape);
     Tensor flip(std::vector<int> axes);
@@ -545,25 +546,42 @@ Tensor<Dtype>& Tensor<Dtype>::operator-=(Tensor<Dtype>&& other) {
 }
 
 template<typename Dtype>
-Tensor<float> Tensor<Dtype>::operator==(Tensor<Dtype>& other) {
+Tensor<float> Tensor<Dtype>::operator==(const Tensor<Dtype>& other) {
     //check same beakend 
     assert(other.device == device && 
            "backend of operators must be the same");
 
     std::shared_ptr<GenericOp<Dtype>> op = 
-        std::make_shared<MaskOp<Dtype>>(__cached_data->size(), 
-                                      OpType::Mask);
+        std::make_shared<MaskOp<Dtype>>(true, OpType::Mask);
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
     inputs.push_back(other.__cached_data);
-    //printf("===============+\n");
 
-    (*op)(op, inputs, device, true);
-
-    return *this;
+    if constexpr (std::is_same_v<Dtype, __half>) 
+        return (*op)(op, inputs, device).to_float();
+    else
+        return (*op)(op, inputs, device);
 }
 
+template<typename Dtype>
+Tensor<float> Tensor<Dtype>::operator!=(const Tensor<Dtype>& other) {
+    //check same beakend 
+    assert(other.device == device && 
+           "backend of operators must be the same");
+
+    std::shared_ptr<GenericOp<Dtype>> op = 
+        std::make_shared<MaskOp<Dtype>>(false, OpType::Mask);
+
+    std::vector<cached_data_type> inputs;
+    inputs.push_back(__cached_data);
+    inputs.push_back(other.__cached_data);
+
+    if constexpr (std::is_same_v<Dtype, __half>)
+        return (*op)(op, inputs, device).to_float();
+    else
+        return (*op)(op, inputs, device);
+}
 
 // return = this + other
 template<typename Dtype>
