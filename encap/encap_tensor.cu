@@ -25,6 +25,8 @@ void bind_tensor(py::module& m) {
         .def_readonly("device", &NdlTensor::device) // 将 device 作为属性公开
 
         .def("to_numpy", &NdlTensor::to_numpy)
+        .def("half", &NdlTensor::half)
+        .def("to_float", &NdlTensor::to_float)
         .def("shape", &NdlTensor::shape)
         .def("strides", &NdlTensor::strides)
         .def("matmul", &NdlTensor::matmul)
@@ -36,7 +38,9 @@ void bind_tensor(py::module& m) {
                         py::arg("axes"))
         .def("summation", py::overload_cast<>(&NdlTensor::summation))
         .def("softmax", py::overload_cast<>(&NdlTensor::softmax))
-
+        .def("argmax", &NdlTensor::argmax,
+            py::arg("dim"),
+            py::arg("keepdim") = false) 
         .def("transpose", &NdlTensor::transpose)
         .def("reshape", &NdlTensor::reshape)
         .def("contiguous", &NdlTensor::contiguous)
@@ -48,6 +52,14 @@ void bind_tensor(py::module& m) {
 
         .def("__add__", [](NdlTensor& a, float scalar) {
             return a + scalar;
+        }, py::is_operator())
+
+        .def("__mul__", [](NdlTensor& a, NdlTensor& b) {
+            return a * b;
+        }, py::is_operator())
+
+        .def("__mul__", [](NdlTensor& a, float scalar) {
+            return a * scalar;
         }, py::is_operator())
 
         .def("__truediv__", [](NdlTensor& a, NdlTensor& b) {
@@ -65,6 +77,7 @@ void bind_tensor(py::module& m) {
 
         // 使用运算符重载 @ 运算符
         .def("__matmul__", &NdlTensor::matmul)
+        .def("from_buffer", &NdlTensor::from_buffer)
 
         .def_property_readonly("shape", [](NdlTensor& self) {
             const auto& shape_vector = self.shape();  // 获取形状的 std::vector<int32_t>
@@ -154,6 +167,7 @@ void bind_module(py::module& m) {
             py::arg("name") = "Embedding")
         .def("forward", &Embedding::forward)
         .def("to_half", &Embedding::to_half)
+        .def("see_weight", &Embedding::see_weight)
         .def("set_params", &Embedding::set_params,
             py::arg("params"),
             py::arg("dtype")=DataType::FLOAT,
@@ -165,6 +179,7 @@ void bind_module(py::module& m) {
     py::class_<ModuleList>(nn, "ModuleList")
         .def(py::init<>())
         .def("append", &ModuleList::append)
+        .def("forward", &ModuleList::forward)
         .def("__getitem__", &ModuleList::operator[])
         .def("__len__", &ModuleList::size)
         .def("__iter__", [](ModuleList &self) {
@@ -214,6 +229,15 @@ void bind_function(py::module& m) {
     py::arg("val"),
     py::arg("dtype") = DataType::FLOAT, 
     py::arg("device") = BackendType::CUDA);
+
+    m.def("where", [](const NdlTensor& condition,
+                      const NdlTensor& x,
+                      const NdlTensor& y) {
+        return NdlTensor::where(condition, x, y);
+    }, 
+    py::arg("condition"),
+    py::arg("x"),
+    py::arg("y"));
 }
 
 PYBIND11_MODULE(needle, m) {

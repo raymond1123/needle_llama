@@ -15,6 +15,7 @@ public:
                                size_t reduce_size,
                                Dtype eps, 
                                const Dtype* a, 
+                               const Dtype* weight, 
                                Dtype* out) {
 
         size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
@@ -30,7 +31,7 @@ public:
         tmp = rsqrtf(tmp / static_cast<Dtype>(reduce_size) + eps);
 
         for(size_t i=0; i<reduce_size; ++i) {
-            out[offset+i] = a[offset+i] * tmp;
+            out[offset+i] = a[offset+i] * tmp * weight[i];
         }
     }
 };
@@ -43,6 +44,7 @@ public:
                                size_t reduce_size,
                                float eps, 
                                const __half* a, 
+                               const __half* weight, 
                                __half* out) {
 
         size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
@@ -60,7 +62,8 @@ public:
 
         for(size_t i=0; i<reduce_size; ++i) {
             float a_fp32 = __half2float(a[offset+i]); 
-            out[offset+i] = __float2half(a_fp32 * tmp);
+            float w_fp32 = __half2float(weight[i]); 
+            out[offset+i] = __float2half(a_fp32 * tmp * w_fp32);
         }
     }
 };
@@ -68,9 +71,10 @@ public:
 
 template<typename Dtype>
 __global__ void __launch_bounds__(kBlockSize)
-ApplyNorm(size_t n, size_t reduce_size, const Dtype* a, Dtype* out, Dtype eps=1e-6) {
+ApplyNorm(size_t n, size_t reduce_size, const Dtype* a, Dtype* weight, 
+          Dtype* out, Dtype eps=1e-6) {
     auto functor = NormKernel<Dtype>();
-    functor(n, reduce_size, eps, a, out);
+    functor(n, reduce_size, eps, a, weight, out);
 }
 
 template<typename Dtype>
@@ -84,7 +88,7 @@ public:
 
     virtual cached_data_type compute(std::vector<cached_data_type> inputs) override {
 
-        assert(inputs.size()==1 && "input number of RMSNorm must be 1");
+        assert(inputs.size()==2 && "input number of RMSNorm must be 2");
 
         inputs[0]->compact();
         __prepare_pos_axes(inputs[0]->shape());
@@ -102,6 +106,7 @@ public:
         int final_shape = (inputs[0]->shape())[_axes[0]];
         ApplyNorm<Dtype><<<_num_blocks, kBlockSize, 0>>>(_n, final_shape,
                                                          inputs[0]->cached_ptr(),
+                                                         inputs[1]->cached_ptr(),
                                                          cached_data->cached_ptr());
 
         err = cudaPeekAtLastError();

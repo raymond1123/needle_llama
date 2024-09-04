@@ -26,8 +26,8 @@ public:
     CpuTensor(const CpuTensor&)=delete;
     CpuTensor& operator=(const CpuTensor&)=delete;
 
-    virtual void half(const float* data, bool cached=false) override;
-    virtual void to_float(float* data);
+    virtual void half(const float* data, bool is_cached=false) override;
+    virtual void to_float(const __half* data, bool is_cached=false);
     virtual py::array_t<float> to_numpy() override;
     virtual void fill_val(float val, DataType dtype) override;
     virtual void zeros() override;
@@ -133,12 +133,12 @@ py::array_t<float> CpuTensor<Dtype>::to_numpy() {
 }
 
 template<typename Dtype>
-void CpuTensor<Dtype>::half(const float* data, bool cached) {
+void CpuTensor<Dtype>::half(const float* data, bool is_cached) {
     assert(true && "now on cpu, only backend on CUDA can convert fp32 to fp16");
 }
 
 template<typename Dtype>
-void CpuTensor<Dtype>::to_float(float* data) {
+void CpuTensor<Dtype>::to_float(const __half* data, bool is_cached) {
     assert(true && "on cpu, data is already fp32");
 }
 

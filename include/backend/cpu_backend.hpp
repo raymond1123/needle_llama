@@ -25,7 +25,8 @@ public:
                  MemCpyType mem_cpy_type) override;
 
     virtual void half(const float* data) override;
-    virtual void to_float(float* data) override;
+    virtual void half2numpy(float* data) override;
+    virtual void to_float(const __half* data) override;
     virtual void fill_val(Dtype val) override;
     virtual void arange(Dtype start, Dtype step) override;
     virtual cached_array_type compact(size_t size, 
@@ -96,7 +97,12 @@ void CpuArray<Dtype>::half(const float* data) {
 }
 
 template<typename Dtype>
-void CpuArray<Dtype>::to_float(float* data) {
+void CpuArray<Dtype>::half2numpy(float* data) {
+    assert(true && "now is on cpu, only on CUDA can convert fp32 to fp16");
+}
+
+template<typename Dtype>
+void CpuArray<Dtype>::to_float(const __half* data) {
     assert(true && "on cpu, data is already fp32");
 }
 

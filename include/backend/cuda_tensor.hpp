@@ -28,7 +28,7 @@ public:
     CudaTensor& operator=(const CudaTensor&)=delete;
 
     virtual void half(const float* data, bool is_cached=false);
-    virtual void to_float(float* data);
+    virtual void to_float(const __half* data, bool is_cached=false);
     virtual py::array_t<float> to_numpy() override;
     virtual void fill_val(float val, DataType dtype) override;
     virtual void zeros() override;
@@ -41,7 +41,9 @@ public:
     virtual std::shared_ptr<BaseTensor<Dtype>> deep_cpy_cached_data() override;
     virtual inline BackendType device() override {return BackendType::CUDA;}
 
+
 protected:
+    void _half2numpy(float* data);
     virtual void _from_numpy(py::array_t<float> &a) override;
 };
 
@@ -120,8 +122,9 @@ void CudaTensor<Dtype>::half(const float* data, bool is_cached) {
 }
 
 template<typename Dtype>
-void CudaTensor<Dtype>::to_float(float* data) {
+void CudaTensor<Dtype>::to_float(const __half* data, bool is_cached) {
     this->array->to_float(data);
+    this->cached = is_cached;
 }
 
 template<typename Dtype>
@@ -134,6 +137,12 @@ void CudaTensor<Dtype>::_from_numpy(py::array_t<float> &a) {
         host_fp32->mem_cpy(const_cast<float*>(ptr), MemCpyType::Host2Dev);
         half(host_fp32->get_ptr());
     }
+}
+
+template<typename Dtype>
+void CudaTensor<Dtype>::_half2numpy(float* data) {
+    //if constexpr (std::is_same_v<Dtype, __half>)
+    this->array->half2numpy(data);
 }
 
 template<typename Dtype>
@@ -154,7 +163,7 @@ py::array_t<float> CudaTensor<Dtype>::to_numpy() {
         this->array->mem_cpy(host_ptr, MemCpyType::Dev2Host);
     } else if constexpr (std::is_same_v<Dtype, __half>) {
         auto d_fp32 = std::make_shared<CudaArray<float>>(this->array->size(), true); 
-        to_float(d_fp32->get_ptr());
+        _half2numpy(d_fp32->get_ptr());
         d_fp32->mem_cpy(host_ptr, MemCpyType::Dev2Host);
     }
 

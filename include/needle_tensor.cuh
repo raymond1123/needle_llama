@@ -284,6 +284,37 @@ public:
         return tensor;
     }
 
+    static NdlTensor where(const NdlTensor& condition,
+                           const NdlTensor& x, const NdlTensor& y) {
+        return std::visit([&](const auto& condition, 
+                              const auto& x, const auto& y) -> NdlTensor {
+
+            using CondType = std::decay_t<decltype(condition)>;
+            using xType = std::decay_t<decltype(x)>;
+            using yType = std::decay_t<decltype(y)>;
+
+            if constexpr (std::is_same_v<CondType, Tensor<float>> &&
+                          std::is_same_v<xType, Tensor<float>> &&
+                          std::is_same_v<yType, Tensor<float>>) {
+                auto result = NdlTensor(f_where(condition, x, y));
+                result.dtype = y.dtype;
+                result.device = y.device;
+                return result;
+            } else if constexpr (std::is_same_v<CondType, Tensor<float>> &&
+                                 std::is_same_v<xType, Tensor<__half>> &&
+                                 std::is_same_v<yType, Tensor<__half>>) {
+                auto result = NdlTensor(f_where(condition, x, y));
+                result.dtype = y.dtype;
+                result.device = y.device;
+                return result;
+            }
+
+            throw std::invalid_argument("Unsupported DataType");
+        }, condition.__tensor, x.__tensor, y.__tensor);
+
+        return NdlTensor(y.dtype, y.device);
+    }
+
     static NdlTensor fill_val(std::vector<int32_t> shape, float val, 
                        DataType dtype, BackendType backend) {
 
@@ -304,7 +335,6 @@ public:
 
     // matmul another NdlTensor
     NdlTensor matmul(const NdlTensor& other) const {
-        printf("zzzzzz\n");
         return std::visit([&](const auto& lhs, const auto& rhs) -> NdlTensor {
             using LhsType = std::decay_t<decltype(lhs)>;
             using RhsType = std::decay_t<decltype(rhs)>;
@@ -331,13 +361,22 @@ public:
         }, this->__tensor);
     }
 
-    NdlTensor rms_norm() {
-        return std::visit([&](auto& tensor) -> NdlTensor {
-            auto result = NdlTensor(tensor.rms_norm());
-            result.dtype = tensor.dtype;
-            result.device = tensor.device;
-            return result;
-        }, this->__tensor);
+    NdlTensor rms_norm(const NdlTensor& weight) {
+        return std::visit([&](auto& tensor, const auto& weight) -> NdlTensor {
+            using LhsType = std::decay_t<decltype(tensor)>;
+            using RhsType = std::decay_t<decltype(weight)>;
+
+            // 确保只有相同类型的 Tensor 能相加
+            if constexpr (std::is_same_v<LhsType, RhsType>) {
+                auto result = NdlTensor(tensor.rms_norm(weight));
+                result.dtype = tensor.dtype;
+                result.device = tensor.device;
+                return result;
+            } else {
+                throw std::invalid_argument("Tensor types must match");
+            }
+            return *this;
+        }, this->__tensor, weight.__tensor);
     }
 
     NdlTensor rotary_emb(int start_pos) {
@@ -393,6 +432,21 @@ public:
             result.device = tensor.device;
             return result;
         }, this->__tensor);
+    }
+
+    std::pair<NdlTensor, NdlTensor> argmax(int dim, bool keepdim) {
+
+        if (std::holds_alternative<Tensor<float>>(__tensor)) {
+            auto tensor = std::get<Tensor<float>>(__tensor);
+            auto [idx, out] = tensor.argmax(dim, keepdim);
+            return { NdlTensor(idx), NdlTensor(out) };
+        } else if (std::holds_alternative<Tensor<__half>>(__tensor)) {
+            auto tensor = std::get<Tensor<__half>>(__tensor);
+            auto [idx, out] = tensor.argmax(dim, keepdim);
+            return { NdlTensor(idx), NdlTensor(out) };
+        } else {
+            throw std::runtime_error("Unsupported tensor type");
+        }
     }
 
     NdlTensor summation() {
@@ -465,9 +519,33 @@ public:
         return result;
     }
 
+    NdlTensor to_float() {
+        NdlTensor result;
+
+        std::visit([&](auto& tensor) {
+            using T = std::decay_t<decltype(tensor)>;
+            if constexpr (std::is_same_v<T, Tensor<__half>>) {
+                result.__tensor = tensor.to_float();
+                result.dtype = DataType::FLOAT;
+                result.device = tensor.device;
+            }
+        }, this->__tensor);
+
+        return result;
+    }
+
+    void from_buffer() {
+        std::visit([&](auto& tensor) {
+            tensor.from_buffer();
+        }, this->__tensor);
+    }
+
 public:
     DataType dtype;
     BackendType device;
+
+    NdlTensor(const Tensor<float>& tensor) : __tensor(tensor) {}
+    NdlTensor(const Tensor<__half>& tensor) : __tensor(tensor) {}
 
 private:
     std::variant<Tensor<float>, Tensor<__half>> __tensor;

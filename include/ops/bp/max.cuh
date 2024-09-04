@@ -15,19 +15,19 @@ public:
                                size_t reduce_size,
                                const Dtype* a, 
                                Dtype* out,
-                               Dtype* idx_ptr) {
+                               float* idx_ptr) {
 
         size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
         if(tx >= n) return;
 
         size_t offset = tx*reduce_size;
         Dtype tmp = a[offset];
-        int idx = 0;
+        float idx = 0;
 
         for(size_t i=0; i<reduce_size; ++i) {
             if(tmp < a[offset+i]) {
                 tmp = a[offset+i];
-                idx = i;
+                idx = static_cast<float>(i);
             }
         }
 
@@ -40,7 +40,7 @@ template<typename Dtype>
 class MaxGradSetitem {
 public:
     __device__ void operator()(size_t n,
-                               const Dtype* idx_ptr, 
+                               const float* idx_ptr, 
                                CudaVec shape,
                                CudaVec strides,
                                CudaVec idx_strides,
@@ -78,14 +78,14 @@ public:
 
 template<typename Dtype>
 __global__ void __launch_bounds__(kBlockSize)
-ApplyRedMax(size_t n, size_t reduce_size, const Dtype* a, Dtype* out, Dtype* idx_ptr) {
+ApplyRedMax(size_t n, size_t reduce_size, const Dtype* a, Dtype* out, float* idx_ptr) {
     auto functor = ReducedMax<Dtype>();
     functor(n, reduce_size, a, out, idx_ptr);
 }
 
 template<typename Dtype>
 __global__ void __launch_bounds__(kBlockSize)
-ApplyMaxGrad(size_t n, const Dtype* idx_ptr, CudaVec shape, 
+ApplyMaxGrad(size_t n, const float* idx_ptr, CudaVec shape, 
              CudaVec stride, CudaVec idx_stride, 
              size_t offset, int dim, const Dtype* a, Dtype* out) {
     auto functor = MaxGradSetitem<Dtype>();
@@ -96,10 +96,11 @@ template<typename Dtype>
 class MaxOp: public GenericOp<Dtype> {
 protected:
     using cached_data_type = std::shared_ptr<BaseTensor<Dtype>>;
+    using cached_fp32_type = std::shared_ptr<BaseTensor<float>>;
 
 public:
-    MaxOp(OpType op_type, int dim,
-          cached_data_type& idx_ptr, bool keepdim=false):
+    MaxOp(OpType op_type, int dim, bool keepdim,
+          cached_fp32_type& idx_ptr): 
         GenericOp<Dtype>(op_type), _axes({dim}), 
         _keepdim(keepdim), _idx_ptr(idx_ptr), _num_blocks(0) {}
 
@@ -256,7 +257,7 @@ private:
 
     std::vector<int> _left_axes;
 
-    cached_data_type _idx_ptr;
+    cached_fp32_type _idx_ptr;
     bool _keepdim;
     std::vector<int32_t> _axes;
     std::vector<int32_t> _left_shape;

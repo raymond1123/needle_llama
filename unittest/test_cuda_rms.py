@@ -7,12 +7,12 @@ import torch
 import torch.nn as tch_nn
 
 class TorchRMSNorm(tch_nn.Module):
-    def __init__(self, dim: int, eps: float = 1e-6):
+    def __init__(self, weight: torch.Tensor, dim: int, eps: float = 1e-6):
         super().__init__()
         self.eps = eps
 
         # The gamma parameter
-        self.weight = tch_nn.Parameter(torch.ones(dim))
+        self.weight = tch_nn.Parameter(weight)
 
     def _norm(self, x: torch.Tensor):
         # (B, Seq_Len, Dim) * (B, Seq_Len, 1) = (B, Seq_Len, Dim)
@@ -33,21 +33,27 @@ class TestTensor(unittest.TestCase):
 
         self.shape = (3, 128, 256)
         self.npx = np.random.randn(*self.shape)
+        self.np_w = np.random.randn(self.shape[-1])
 
-        self.tch_rms = TorchRMSNorm(self.shape[-1])
+        ndl_x = ndl.Tensor(self.npx, dtype=ndl.fp16, backend=ndl.cuda)
 
     def check_shape(self, tensor, npx):
         self.assertEqual(tensor.shape, npx.shape)
 
     def test_add_fp16_cuda(self):
         # CUDA, fp16
+
+        tch_w = torch.from_numpy(self.np_w).to(torch.float16).cuda()
+        ndl_w = ndl.Tensor(self.np_w, dtype=ndl.fp16, backend=ndl.cuda)
+
         ndl_x = ndl.Tensor(self.npx, dtype=ndl.fp16, backend=ndl.cuda)
         tch_x = torch.from_numpy(self.npx).to(torch.float16).cuda()
 
+        self.tch_rms = TorchRMSNorm(tch_w, self.shape[-1])
         self.tch_rms.cuda().half()
         tch_result = self.tch_rms(tch_x).cpu().detach().numpy()
 
-        ndl_result = ndl_x.rms_norm()
+        ndl_result = ndl_x.rms_norm(ndl_w)
         err = np.max(np.abs(ndl_result.to_numpy()-tch_result))
         print(f'{err=}')
 
@@ -59,14 +65,17 @@ class TestTensor(unittest.TestCase):
 
     def test_add_fp32_cuda(self):
         # CUDA, fp32
+        tch_w = torch.from_numpy(self.np_w).to(torch.float32).cuda()
+        ndl_w = ndl.Tensor(self.np_w, dtype=ndl.fp32, backend=ndl.cuda)
+
         ndl_x = ndl.Tensor(self.npx, dtype=ndl.fp32, backend=ndl.cuda)
         tch_x = torch.from_numpy(self.npx).to(torch.float32).cuda()
 
+        self.tch_rms = TorchRMSNorm(tch_w, self.shape[-1])
         self.tch_rms.cuda()
         tch_result = self.tch_rms(tch_x).cpu().detach().numpy()
 
-        ndl_x.rms_norm()
-        ndl_result = ndl_x.rms_norm().to_numpy()
+        ndl_result = ndl_x.rms_norm(ndl_w).to_numpy()
 
         err = np.max(np.abs(ndl_result-tch_result))
         print(f'{err=}')

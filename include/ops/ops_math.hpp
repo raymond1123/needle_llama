@@ -28,5 +28,6 @@
 #include "ops/bp/softmax.cuh"
 #include "ops/bp/silu.cuh"
 #include "ops/bp/embedding.cuh"
+#include "ops/bp/where.cuh"
 
 #endif

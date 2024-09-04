@@ -1,81 +1,55 @@
-#ifndef __EMBD_OP__
-#define __EMBD_OP__
+#ifndef __MASK_OP__
+#define __MASK_OP__
 
 #include "ops/generic_op.cuh"
-#include "ops/bp/permute.cuh"
-#include "ops/bp/broadcast.cuh"
 
 template<typename Dtype> class CpuTensor;
 template<typename Dtype> class CudaTensor;
 
 template<typename Dtype>
-class EmbeddingKernel {
+class MaskKernel{
 public:
-    __device__ void operator()(const int n,
-                               const int dim,
-                               const int tblock,
-                               const Dtype* emb, 
-                               const float* idx, 
+    __device__ void operator()(size_t n,
+                               const Dtype* a, 
                                Dtype* out) {
 
         size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
-        size_t offset = int(idx[blockIdx.x])*dim;
-
-        for(int i=0; i<tblock; ++i) {
-            int idx = tx*tblock+i;
-            if(idx >= n) return;
-            out[idx] = emb[offset+threadIdx.x*tblock+i];
-        }
+        if (tx < n) out[tx] = -a[tx];
     }
 };
 
 template<typename Dtype>
 __global__ void __launch_bounds__(kBlockSize)
-ApplyEmbedding(const size_t n, const int dim, int tblock,
-               const Dtype* emb, const float* idx, Dtype* out) {
-    auto functor = EmbeddingKernel<Dtype>();
-    functor(n, dim, tblock, emb, idx, out);
+ApplyNeg(size_t n, const Dtype* a, Dtype* out) {
+    auto functor = MaskKernel<Dtype>();
+    functor(n, a, out);
 }
 
 template<typename Dtype>
-class EmbeddingOp: public GenericOp<Dtype> {
+class MaskOp: public GenericOp<Dtype> {
 protected:
     using cached_data_type = std::shared_ptr<BaseTensor<Dtype>>;
 
 public:
-    EmbeddingOp(const std::shared_ptr<BaseTensor<float>>& index, OpType op_type): 
-            GenericOp<Dtype>(op_type), _num_blocks(0), _index(index) {}
+    MaskOp(OpType op_type): GenericOp<Dtype>(op_type) {}
 
-    /* only can handle shape=[1, 1, num_head, head_dim]*/
     virtual cached_data_type compute(std::vector<cached_data_type> inputs) override {
 
-        assert(inputs.size()==1 && "input number of embedding must be 1");
-        _index->compact();
+        assert(inputs.size()==1 && "input number of MaskOp must be 1");
 
-        int32_t vocab_size = inputs[0]->shape()[0];
-        int32_t dim = inputs[0]->shape()[1];
-        int32_t batch_size = _index->shape()[0];
-        int32_t seq_len = _index->shape()[1];
-
-        std::vector<int32_t> out_shape = {batch_size, seq_len, dim};
-        cached_data_type cached_data = __create_cached_data(out_shape,
+        cached_data_type cached_data = __create_cached_data(inputs[0]->shape(),
                                                             inputs[0]->dtype,
                                                             inputs[0]->device());
-        //_n = cached_data->size();
-        //cudaError_t err = _get_num_blocks();
-        //assert(err==cudaSuccess && "get_num_blocks in SummationOp failed");
-        _num_blocks = batch_size*seq_len;
-        printf("batch_size=%d, seq_len=%d, nnnnnnum_blocks=%d, dim=%d\n", 
-                batch_size, seq_len, _num_blocks, dim);
+        _n = cached_data->size();
+        cudaError_t err = _get_num_blocks();
+        assert(err==cudaSuccess && "get_num_blocks in MaskOp failed");
 
-        int tblock = (dim+kBlockSize-1)/kBlockSize;
-        ApplyEmbedding<Dtype><<<_num_blocks, kBlockSize, 0>>>(cached_data->size(), dim, tblock,
-                                                       inputs[0]->cached_ptr(),
-                                                       _index->cached_ptr(),
-                                                       cached_data->cached_ptr());
+        ApplyNeg<Dtype><<<_num_blocks, kBlockSize, 0>>>(_n,
+                                                  inputs[0]->cached_ptr(),
+                                                  cached_data->cached_ptr());
 
-        cudaError_t err = cudaPeekAtLastError();
-        assert(err==cudaSuccess && "ApplyRMSNorm failed");
+        err = cudaPeekAtLastError();
+        assert(err==cudaSuccess && "ApplyNeg failed");
 
         cached_data->cached = true;
         cached_data->is_compact = true;
@@ -83,9 +57,9 @@ public:
         return cached_data;
     }
 
+    /* TODO */
     virtual std::vector<cached_data_type> gradient(cached_data_type out_grad, 
                                                    cached_data_type tensor) override {
-        /* not done yet */
         return {out_grad};
     }
 
@@ -129,7 +103,8 @@ private:
 private:
     size_t _n;
     int _num_blocks;
-    const std::shared_ptr<BaseTensor<float>> _index;
+    cached_data_type _idx_ptr;
 };
 
 #endif
+

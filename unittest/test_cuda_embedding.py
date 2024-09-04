@@ -18,6 +18,7 @@ class TestTensor(unittest.TestCase):
         #self.shape = (320, 512)
         self.shape = (32000, 512)
         self.idx = np.array([[0,1],[2,3],[4,2],[233,325]])
+        #self.idx = np.array([[1],[1]])
 
     def check_shape(self, tensor, npx):
         self.assertEqual(tensor.shape, npx.shape)
@@ -26,7 +27,6 @@ class TestTensor(unittest.TestCase):
         # CUDA, fp16
         ndl_idx = ndl.Tensor(self.idx, dtype=ndl.fp32, backend=ndl.cuda)
         tch_idx = torch.from_numpy(self.idx).cuda()
-
 
         tch_emb = tch_nn.Embedding(*self.shape).to(torch.float16).cuda()
         np_emb = tch_emb.weight.cpu().detach().numpy()

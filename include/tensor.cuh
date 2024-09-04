@@ -13,6 +13,7 @@ template<typename Dtype>
 class Tensor {
 public:
     using cached_data_type = std::shared_ptr<BaseTensor<Dtype>>;
+    using cached_fp32_type = std::shared_ptr<BaseTensor<float>>;
 
     /* constructor */
     Tensor() {}
@@ -44,6 +45,7 @@ public:
     Tensor(Tensor* other);
 
     Tensor<__half> half();
+    Tensor<float> to_float();
 
     /* move/cpy operator= */
     Tensor& operator=(Tensor&& other) noexcept;
@@ -51,6 +53,7 @@ public:
     std::shared_ptr<BaseTensor<Dtype>> deep_cpy_cached_data();
 
     inline cached_data_type cached_data() const { return __cached_data; }
+    inline cached_fp32_type cached_data_fp32() const { return __cached_data; }
     inline py::array_t<float> to_numpy() { return __cached_data->to_numpy(); }
     inline void from_buffer() { __cached_data->from_buffer(); }
     inline py::array_t<Dtype> grad() { return __cached_data->grad->to_numpy(); }
@@ -96,6 +99,7 @@ public:
 
     Tensor& operator+=(const Tensor& other);
     Tensor& operator-=(Tensor&& other);
+    Tensor<float> operator==(Tensor& other);
 
     Tensor reshape(std::vector<int32_t> new_shape);
     Tensor flip(std::vector<int> axes);
@@ -106,7 +110,7 @@ public:
     Tensor transpose(std::vector<int> axes);
     Tensor summation(std::vector<int> axes);
     Tensor summation();
-    std::vector<Tensor> max(int dim, bool keepdim);
+    std::pair<Tensor<float>, Tensor<Dtype>> argmax(int dim, bool keepdim);
     Tensor padding(std::vector<int> axes);
     Tensor dilate(uint32_t dilation, std::vector<int> axes);
     Tensor relu();
@@ -115,7 +119,7 @@ public:
     Tensor log();
     Tensor exp();
     Tensor neg();
-    Tensor rms_norm();
+    Tensor rms_norm(const Tensor& weight);
     Tensor rotary_emb(int start_pos);
     Tensor softmax();
 
@@ -242,7 +246,23 @@ Tensor<__half> Tensor<Dtype>::half() {
         half_tensor.cached_data()->half(this->__cached_data->cached_ptr(),
                                         this->__cached_data->cached);
 
+        dtype = DataType::HALF;
         return half_tensor;
+    } 
+
+    throw std::runtime_error("cpu does not support half data type");
+}
+
+template<typename Dtype>
+Tensor<float> Tensor<Dtype>::to_float() {
+
+    if constexpr (std::is_same_v<Dtype, __half>) {
+        Tensor<float> float_tensor(__cached_data->shape(), DataType::FLOAT, BackendType::CUDA);
+        float_tensor.cached_data()->to_float(this->__cached_data->cached_ptr(),
+                                             this->__cached_data->cached);
+
+        dtype = DataType::FLOAT;
+        return float_tensor;
     } 
 
     throw std::runtime_error("cpu does not support half data type");
@@ -523,6 +543,27 @@ Tensor<Dtype>& Tensor<Dtype>::operator-=(Tensor<Dtype>&& other) {
 
     return *this;
 }
+
+template<typename Dtype>
+Tensor<float> Tensor<Dtype>::operator==(Tensor<Dtype>& other) {
+    //check same beakend 
+    assert(other.device == device && 
+           "backend of operators must be the same");
+
+    std::shared_ptr<GenericOp<Dtype>> op = 
+        std::make_shared<MaskOp<Dtype>>(__cached_data->size(), 
+                                      OpType::Mask);
+
+    std::vector<cached_data_type> inputs;
+    inputs.push_back(__cached_data);
+    inputs.push_back(other.__cached_data);
+    //printf("===============+\n");
+
+    (*op)(op, inputs, device, true);
+
+    return *this;
+}
+
 
 // return = this + other
 template<typename Dtype>
@@ -816,13 +857,14 @@ Tensor<Dtype> Tensor<Dtype>::summation() {
 }
 
 template<typename Dtype>
-Tensor<Dtype> Tensor<Dtype>::rms_norm() {
+Tensor<Dtype> Tensor<Dtype>::rms_norm(const Tensor<Dtype>& weight) {
 
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<RMSNormOp<Dtype>>(OpType::RMSNorm);
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
+    inputs.push_back(weight.__cached_data);
     //printf("===============+\n");
 
     return (*op)(op, inputs, device);
@@ -855,7 +897,7 @@ Tensor<Dtype> Tensor<Dtype>::softmax() {
 }
 
 template<typename Dtype>
-std::vector<Tensor<Dtype>> Tensor<Dtype>::max(int dim, bool keepdim) {
+std::pair<Tensor<float>, Tensor<Dtype>> Tensor<Dtype>::argmax(int dim, bool keepdim=false) {
     /* calc output shape */
     std::vector<int32_t> shape = __cached_data->shape(); 
     std::vector<int32_t> out_shape; 
@@ -871,10 +913,14 @@ std::vector<Tensor<Dtype>> Tensor<Dtype>::max(int dim, bool keepdim) {
         }
     }
 
-    auto idx = Tensor<Dtype>::zeros(out_shape, __cached_data->dtype, device);
+    auto idx = Tensor<float>::zeros(out_shape, DataType::FLOAT, device);
 
+    auto idx_data = idx.cached_data_fp32();
     std::shared_ptr<GenericOp<Dtype>> op = 
-        std::make_shared<MaxOp<Dtype>>(OpType::Max, dim, idx.__cached_data, keepdim);
+        std::make_shared<MaxOp<Dtype>>(OpType::Max, 
+                                       dim, 
+                                       keepdim,
+                                       idx_data);
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
@@ -882,7 +928,8 @@ std::vector<Tensor<Dtype>> Tensor<Dtype>::max(int dim, bool keepdim) {
 
     Tensor<Dtype> out = (*op)(op, inputs, device);
 
-    return {out, idx};
+    //return {out, idx};
+    return std::make_pair(idx, out);
 }
 
 /*
@@ -1040,7 +1087,11 @@ Tensor<Dtype> Tensor<Dtype>::make_from_op(const std::shared_ptr<GenericOp<Dtype>
 
     assert(inputs.size() > 0 && "number of inputs is zero");
 
-    Tensor<Dtype> new_t = Tensor<Dtype>(inputs[0]->dtype, backend, op, inputs);
+    Tensor<Dtype> new_t;
+    if(inputs.size()>1)
+        new_t = Tensor<Dtype>(inputs[1]->dtype, backend, op, inputs);
+    else
+        new_t = Tensor<Dtype>(inputs[0]->dtype, backend, op, inputs);
 
     new_t.__cached_data = new_t.__cached_data->realized_cached_data();
 

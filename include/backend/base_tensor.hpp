@@ -27,7 +27,7 @@ public:
     virtual inline size_t size()=0;
     virtual void fill_val(float val, DataType dtype)=0;
     virtual void half(const float* data, bool is_cached=false)=0;
-    virtual void to_float(float* data)=0;
+    virtual void to_float(const __half* data, bool is_cached=false)=0;
     virtual void zeros()=0;
     virtual void ones()=0;
     virtual void arange(int32_t start, int32_t step, DataType dtype)=0;

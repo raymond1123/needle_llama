@@ -18,6 +18,7 @@
 #include <numeric>
 #include <sstream>
 #include <unordered_map>
+#include <utility>
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -88,7 +89,9 @@ enum class OpType: int {
     RotaryEmb= 34,
     Softmax= 35,
     Embedding = 36,
-    Silu = 37
+    Silu = 37,
+    Where = 38,
+    Mask=39
 };
 
 enum class DataType: int{

@@ -31,7 +31,7 @@ __global__ void convert_fp32_to_fp16(Dtype* out, const float* data, size_t size)
 }
 
 template<typename Dtype>
-__global__ void convert_fp16_to_fp32(const Dtype* data, float* out, size_t size) {
+__global__ void convert_fp16_to_fp32(Dtype* out, const __half* data, size_t size) {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
 
     if(gid < size) {
@@ -82,7 +82,7 @@ public:
     CudaArray(const CudaArray&)=delete;
     CudaArray& operator=(const CudaArray&)=delete;
     virtual void half(const float* data) override;
-    virtual void to_float(float* data) override;
+    virtual void to_float(const __half* data) override;
 
     virtual void mem_cpy(Dtype* ptr, 
                          MemCpyType mem_cpy_type) override;
@@ -93,6 +93,8 @@ public:
                               std::vector<int32_t> shape,
                               std::vector<int32_t> strides,
                               size_t offset) override;
+
+    void half2numpy(float* data) override;
 
 private:
     cudaError_t __device2host(Dtype* host_ptr);
@@ -166,11 +168,22 @@ void CudaArray<Dtype>::half(const float* data) {
 }
 
 template<typename Dtype>
-void CudaArray<Dtype>::to_float(float* data) {
+void CudaArray<Dtype>::to_float(const __half* data) {
     int block = 256;
     int grid = (this->__size+block-1)/block;
     if(data != nullptr) {
         convert_fp16_to_fp32<<<grid, block>>>(this->__ptr, data, this->__size);
+    }
+}
+
+template<typename Dtype>
+void CudaArray<Dtype>::half2numpy(float* data) {
+    if constexpr (std::is_same_v<Dtype, __half>) {
+        int block = 256;
+        int grid = (this->__size+block-1)/block;
+        if(data != nullptr) {
+            convert_fp16_to_fp32<<<grid, block>>>(data, this->__ptr, this->__size);
+        }
     }
 }
 

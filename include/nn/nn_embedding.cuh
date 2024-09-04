@@ -34,7 +34,6 @@ public:
             to_half();
 
         this->dtype = dtype;
-
         this->_params[0] = token_emb;
     }
 

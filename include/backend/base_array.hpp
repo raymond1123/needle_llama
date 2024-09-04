@@ -19,7 +19,7 @@ public:
     inline void set_ptr(Dtype * ptr) {__ptr = ptr;}
 
     virtual void half(const float* data)=0;
-    virtual void to_float(float* data)=0;
+    virtual void to_float(const __half* data)=0;
     virtual void arange(Dtype start, Dtype step)=0;
     virtual cached_array_type compact(size_t size, 
                                       std::vector<int32_t> shape,
@@ -28,6 +28,7 @@ public:
     virtual void mem_cpy(Dtype* ptr, 
                          MemCpyType mem_cpy_type)=0;
     virtual void fill_val(Dtype val)=0;
+    virtual void half2numpy(float* data)=0;
 
 protected:
     Dtype *__ptr;
