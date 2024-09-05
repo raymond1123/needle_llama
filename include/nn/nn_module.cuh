@@ -32,7 +32,10 @@ public:
             __check();
     }
 
-    virtual ~Module() = default;
+    virtual ~Module() {
+        for(auto& p: _params)
+            p.reset();
+    }
 
     inline void train() {
         _get_submodules();

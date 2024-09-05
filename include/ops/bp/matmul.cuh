@@ -76,6 +76,8 @@ void ApplyGemm_fp16(std::vector<int> &first_shape,
                      CUBLAS_COMPUTE_16F,
                      CUBLAS_GEMM_DEFAULT_TENSOR_OP);
     }
+
+    cublasDestroy(handle);
 }
 
 void ApplyGemm_fp32(std::vector<int> &first_shape, 
@@ -108,6 +110,8 @@ void ApplyGemm_fp32(std::vector<int> &first_shape,
 
         assert(status == CUBLAS_STATUS_SUCCESS && "cublasSgemmBatched failed");
     }
+
+    cublasDestroy(handle);
 }
 
 template<typename Dtype>

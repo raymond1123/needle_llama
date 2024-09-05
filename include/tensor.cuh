@@ -25,6 +25,7 @@ public:
            BackendType backend, 
            std::shared_ptr<GenericOp<Dtype>> op=nullptr,
            std::vector<cached_data_type> inputs={nullptr});
+    ~Tensor() {__cached_data.reset();}
 
     static Tensor fill_val(std::vector<int32_t> shape, float val, 
                            DataType dtype=DataType::FLOAT,
@@ -160,7 +161,6 @@ public:
 
 private:
     int __tensor_idx;
-
     std::shared_ptr<BaseTensor<Dtype>> __cached_data;
 };
 

@@ -21,7 +21,7 @@ public:
                std::vector<cached_data_type> inputs): dtype(dtype),
         op(op), inputs(inputs), cached(false), is_compact(true) {}
 
-    virtual ~BaseTensor()=default;
+    virtual ~BaseTensor() { array.reset();}
 
     virtual py::array_t<float> to_numpy()=0;
     virtual inline size_t size()=0;

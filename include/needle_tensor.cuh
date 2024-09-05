@@ -9,6 +9,8 @@ class NdlTensor {
 public:
     /* constructor */
     NdlTensor() {}
+    ~NdlTensor() {}
+
     NdlTensor(py::array_t<float>& np_array, 
               DataType dtype=DataType::FLOAT, 
               BackendType backend=BackendType::CUDA): dtype(dtype), device(backend) {

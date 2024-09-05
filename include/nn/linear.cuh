@@ -36,6 +36,11 @@ public:
             this->_params.push_back(bias);
     }
 
+    ~Linear() { 
+        for(auto& p: this->_params)
+            p.reset();
+    }
+
     void set_params(std::vector<py::array_t<float>>& params,
                     DataType dtype=DataType::FLOAT,
                     BackendType device=BackendType::CUDA) {

@@ -22,7 +22,7 @@ public:
               const std::shared_ptr<GenericOp<Dtype>> op, 
               std::vector<cached_data_type> inputs): 
                     BaseTensor<Dtype>(dtype, op, inputs) {}
-    ~CudaTensor() {}
+    ~CudaTensor() {this->array.reset();}
 
     CudaTensor(const CudaTensor&)=delete;
     CudaTensor& operator=(const CudaTensor&)=delete;
