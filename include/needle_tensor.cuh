@@ -231,7 +231,7 @@ public:
     }
 
     // operator== for adding another NdlTensor
-    NdlTensor operator==(NdlTensor& other) {
+    NdlTensor operator==(const NdlTensor& other) {
         return std::visit([&](auto&& lhs, auto&& rhs) -> NdlTensor {
             using LhsType = std::decay_t<decltype(lhs)>;
             using RhsType = std::decay_t<decltype(rhs)>;
@@ -250,7 +250,7 @@ public:
     }
 
     // operator!= for adding another NdlTensor
-    NdlTensor operator!=(NdlTensor& other) {
+    NdlTensor operator!=(const NdlTensor& other) {
         return std::visit([&](auto&& lhs, auto&& rhs) -> NdlTensor {
             using LhsType = std::decay_t<decltype(lhs)>;
             using RhsType = std::decay_t<decltype(rhs)>;
@@ -266,6 +266,30 @@ public:
             }
             return *this;
         }, this->__tensor, other.__tensor);
+    }
+
+    // operator== for adding another NdlTensor
+    NdlTensor operator==(const float scalar) {
+        return std::visit([&](auto&& lhs) -> NdlTensor {
+
+            auto result = NdlTensor(lhs==scalar);
+            result.dtype = lhs.dtype;
+            result.device = lhs.device;
+            return result;
+
+        }, this->__tensor);
+    }
+
+    // operator!= for adding another NdlTensor
+    NdlTensor operator!=(const float scalar) {
+        return std::visit([&](auto&& lhs) -> NdlTensor {
+
+            auto result = NdlTensor(lhs!=scalar);
+            result.dtype = lhs.dtype;
+            result.device = lhs.device;
+            return result;
+
+        }, this->__tensor);
     }
 
     static NdlTensor arange(int32_t start, int32_t end, int32_t step=1,

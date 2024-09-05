@@ -46,8 +46,28 @@ void bind_tensor(py::module& m) {
         .def("contiguous", &NdlTensor::contiguous)
         .def("silu", &NdlTensor::silu)
 
-        .def("__eq__", &NdlTensor::operator==)
-        .def("__ne__", &NdlTensor::operator!=)
+        //.def("__eq__", &NdlTensor::operator==)
+        //.def("__ne__", &NdlTensor::operator!=)
+        .def("__eq__", 
+            [](NdlTensor &self, const NdlTensor &other) {
+                return self == other; 
+            },
+            py::is_operator())
+        .def("__ne__", 
+            [](NdlTensor &self, const NdlTensor &other) {
+                return self != other; 
+            },
+            py::is_operator())
+        .def("__eq__",
+            [](NdlTensor &self, float scalar) {
+                return self == scalar; 
+            },
+            py::is_operator())
+        .def("__ne__",
+            [](NdlTensor &self, float scalar) {
+                return self != scalar; 
+            },
+            py::is_operator()) 
 
         .def("__add__", [](NdlTensor& a, NdlTensor& b) {
             return a + b;

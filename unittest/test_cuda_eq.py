@@ -61,6 +61,27 @@ class TestTensor(unittest.TestCase):
         else:
             print(f"fp32_cuda: {self.RED}FAILED{self.RESET}, {err=}")
 
+    def test_neq_fp16_scalar_cuda(self):
+        # CUDA, fp16
+        scalar = -1.
+        ndl_x = ndl.ones([256, 512], ndl.fp16, ndl.cuda)
+        ndl_x[:,122:233] = ndl_x[:,122:233]*(-1.0)
+
+        tch_x = torch.ones(self.shape)
+        tch_x[:,122:233] = tch_x[:,122:233]*(-1.0)
+
+        ndl_result = (ndl_x!=scalar).to_numpy()
+        tch_result = (tch_x!=scalar).numpy()
+
+        diff = tch_result - ndl_result
+        err = np.max(np.abs(diff))
+        print(f'{err=}')
+
+        if err < 1e-2:
+            print(f"fp16_cuda: {self.GREEN}PASS{self.RESET}")
+        else:
+            print(f"fp16_cuda: {self.RED}FAILED{self.RESET}, {err=}")
+
     def test_neq_fp16_cuda(self):
         # CUDA, fp16
         ndl_x = ndl.Tensor(self.npx, dtype=ndl.fp16, backend=ndl.cuda)
