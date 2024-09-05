@@ -61,18 +61,6 @@ public:
         //auto x = tensor;
         int in_feat_idx = tensor.shape().size()- 1;
 
-        /* debug */
-        for(int i=0; i<tensor.shape().size(); ++i) {
-            printf("tensor.shape[%d]=%d,", i, tensor.shape()[i]);
-        }
-        printf("\n");
-
-        for(int i=0; i<weight->shape().size(); ++i) {
-            printf("weight.shape[%d]=%d,", i, weight->shape()[i]);
-        }
-        printf("\n");
-        /* debug done */
-
         assert(tensor.shape()[in_feat_idx]==_in_features &&"shape of input tensor and weight does not match");
 
         const auto& w = *weight;

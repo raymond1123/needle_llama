@@ -65,9 +65,6 @@ public:
         //cudaError_t err = _get_num_blocks();
         //assert(err==cudaSuccess && "get_num_blocks in SummationOp failed");
         _num_blocks = batch_size*seq_len;
-        printf("batch_size=%d, seq_len=%d, nnnnnnum_blocks=%d, dim=%d\n", 
-                batch_size, seq_len, _num_blocks, dim);
-
         int tblock = (dim+kBlockSize-1)/kBlockSize;
         ApplyEmbedding<Dtype><<<_num_blocks, kBlockSize, 0>>>(cached_data->size(), dim, tblock,
                                                        inputs[0]->cached_ptr(),

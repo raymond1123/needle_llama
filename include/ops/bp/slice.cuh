@@ -102,11 +102,6 @@ private:
         assert(ellipsis_cnt<=1 && "number of ellipsis in slice can only be 1");
         ellipsis_end = num_dims-(_indices.size()-ellipsis_index-1)-1;
 
-        #ifdef DEBUG
-        printf("ellipsis_index=%d, ellipsis_start=%d, ellipsis_end=%d\n", 
-               ellipsis_index, ellipsis_start, ellipsis_end);
-        #endif
-
         int slice_index = 0;
         bool ellipsis_add1 = false;
 
@@ -135,14 +130,6 @@ private:
             _new_shape[i] = static_cast<size_t>(pos_slice[3]);
             assert(_new_shape[i]>0 && "slice failed");
         }
-
-        #ifdef DEBUG
-        for(int i=0; i<_pos_slices.size(); ++i) {
-                printf("Slice %d: Start: %ld, Stop: %ld, Step: %ld, Length: %ld\n", 
-                       i, _pos_slices[i][0], _pos_slices[i][1], 
-                       _pos_slices[i][2], _pos_slices[i][3]);
-        }
-        #endif
 
         for(int i=0; i<num_dims; ++i) {
             _new_strides[i] = _org_strides[i]*_pos_slices[i][2];
