@@ -25,8 +25,8 @@ public:
         // TODO inputs[1] should not be compact
         inputs[1]->compact();
 
-        auto out_cached = inputs[0]->deep_cpy_cached_data();
-        //_n = out_cached->size();
+        //auto out_cached = inputs[0]->deep_cpy_cached_data();
+        auto out_cached = inputs[0];
 
         std::shared_ptr<GenericOp<Dtype>> slice_op = 
             std::make_shared<SliceOp<Dtype>>(OpType::Slice, _indices, 

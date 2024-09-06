@@ -1099,13 +1099,14 @@ template<typename Dtype>
 void Tensor<Dtype>::setitem(std::vector<py::object> indices, Tensor& other) {
 
     // move *this to tmp
-    cached_data_type tmp_cached_data = __cached_data;
+    //cached_data_type tmp_cached_data = __cached_data;
 
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<SetitemOp<Dtype>>(OpType::Setitem, indices);
 
     std::vector<cached_data_type> inputs;
-    inputs.push_back(tmp_cached_data);
+    //inputs.push_back(tmp_cached_data);
+    inputs.push_back(__cached_data);
     inputs.push_back(other.__cached_data);
 
     // assign __cached_dat a new pointer

@@ -81,6 +81,7 @@ public:
 
     CudaArray(const CudaArray&)=delete;
     CudaArray& operator=(const CudaArray&)=delete;
+    //CudaArray& operator=(const CudaArray&);
     virtual void half(const float* data) override;
     virtual void to_float(const __half* data) override;
 
@@ -111,6 +112,16 @@ CudaArray<Dtype>::CudaArray(const size_t size, bool create_cache):
         if (err != cudaSuccess) throw std::runtime_error(cudaGetErrorString(err));
     }
 }
+
+/*
+template<typename Dtype>
+CudaArray<Dtype>& CudaArray<Dtype>::operator=(const CudaArray<Dtype>& other) { 
+    if(this==&other) return *this;
+
+    //BaseArray<Dtype>(size);
+
+}
+*/
 
 template<typename Dtype>
 void CudaArray<Dtype>::mem_cpy(Dtype* ptr, 
