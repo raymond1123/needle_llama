@@ -36,12 +36,12 @@ static CudaDims CudaOneDim(size_t size) {
   return dim;
 }
 
-__device__ void get_index(size_t gid, size_t *indices, CudaVec &shape) {
+__device__ void get_index(size_t tid, size_t *indices, CudaVec &shape) {
     uint32_t cur=1, pre=1;
     for(int i=shape.size-1; i>=0; --i) {
-        cur *= shape.data[i];
-        indices[i] = gid%cur/pre;
-        pre *= shape.data[i];
+        cur = pre * shape.data[i];
+        indices[i] = tid%cur/pre;
+        pre = cur; 
     }
 }
 

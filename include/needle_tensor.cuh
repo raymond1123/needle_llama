@@ -415,10 +415,50 @@ public:
         }, this->__tensor, other.__tensor);
     }
 
+    NdlTensor as_strided(std::vector<int32_t> shape, 
+                        std::vector<int32_t> stride) const {
+
+        return std::visit([&](const auto& tensor) -> NdlTensor {
+
+            auto result = NdlTensor(tensor.as_strided(shape, stride));
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
+
+        }, this->__tensor);
+    }
+
+    // conv2d 
+    NdlTensor conv2d(const NdlTensor& weight, int stride, int padding) const {
+        return std::visit([&](const auto& lhs, const auto& rhs) -> NdlTensor {
+            using LhsType = std::decay_t<decltype(lhs)>;
+            using RhsType = std::decay_t<decltype(rhs)>;
+
+            if constexpr (std::is_same_v<LhsType, RhsType>) {
+                auto result = NdlTensor(lhs.conv2d(rhs, stride, padding));
+                result.dtype = rhs.dtype;
+                result.device = rhs.device;
+                return result;
+            } else {
+                throw std::invalid_argument("Tensor types must match");
+            }
+            return *this;
+        }, this->__tensor, weight.__tensor);
+    }
+
     NdlTensor summation(const std::vector<int>& axes) {
         return std::visit([&](auto& tensor) -> NdlTensor {
             //return tensor.summation(axes);
             auto result = NdlTensor(tensor.summation(axes));
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
+        }, this->__tensor);
+    }
+
+    NdlTensor padding(const std::vector<int>& axes) {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            auto result = NdlTensor(tensor.padding(axes));
             result.dtype = tensor.dtype;
             result.device = tensor.device;
             return result;
@@ -522,9 +562,18 @@ public:
         }, this->__tensor);
     }
     
-    NdlTensor transpose(std::vector<int> axes) {
+    NdlTensor transpose(std::vector<int> axes) const {
         return std::visit([&](auto& tensor) -> NdlTensor {
             auto result = NdlTensor(tensor.transpose(axes));
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
+        }, this->__tensor);
+    }
+
+    NdlTensor permute(std::vector<int> axes) const {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            auto result = NdlTensor(tensor.permute(axes));
             result.dtype = tensor.dtype;
             result.device = tensor.device;
             return result;
@@ -608,8 +657,8 @@ public:
     DataType dtype;
     BackendType device;
 
-    NdlTensor(const Tensor<float>& tensor) : __tensor(tensor) {}
-    NdlTensor(const Tensor<__half>& tensor) : __tensor(tensor) {}
+    //NdlTensor(const Tensor<float>& tensor) : __tensor(tensor) {}
+    //NdlTensor(const Tensor<__half>& tensor) : __tensor(tensor) {}
 
 private:
     std::variant<Tensor<float>, Tensor<__half>> __tensor;

@@ -7,6 +7,7 @@
 #include "nn/function.cuh"
 #include "nn/nn_module.cuh"
 #include "nn/linear.cuh"
+#include "nn/nn_conv2d.cuh"
 #include "nn/nn_embedding.cuh"
 #include "nn/module_list.cuh"
 #include "init/init_basic.cuh"
@@ -41,7 +42,10 @@ void bind_tensor(py::module& m) {
         .def("argmax", &NdlTensor::argmax,
             py::arg("dim"),
             py::arg("keepdim") = false) 
+        .def("padding", &NdlTensor::padding)
+        .def("permute", &NdlTensor::permute)
         .def("transpose", &NdlTensor::transpose)
+        .def("as_strided", &NdlTensor::as_strided)
         .def("reshape", &NdlTensor::reshape)
         .def("contiguous", &NdlTensor::contiguous)
         .def("silu", &NdlTensor::silu)
@@ -177,8 +181,29 @@ void bind_module(py::module& m) {
             py::arg("dtype")=DataType::FLOAT,
             py::arg("device")=BackendType::CUDA)
         .def("see_weight", &Linear::see_weight)
-        .def_readwrite("weight", &Linear::weight) // 将 dtype 作为属性公开
-        .def_readwrite("bias", &Linear::bias) // 将 dtype 作为属性公开
+        .def_readwrite("weight", &Linear::weight) // 将 weight 作为属性公开
+        .def_readwrite("bias", &Linear::bias) // 将 bias 作为属性公开
+        ;
+
+    py::class_<Conv2d, Module, std::shared_ptr<Conv2d>>(nn, "Conv2d")
+        .def(py::init<int, int, int, int, bool, DataType, BackendType, std::string>(),
+            py::arg("in_channels"),
+            py::arg("out_channels"),
+            py::arg("kernel_size"),
+            py::arg("stride"),
+            py::arg("bias") = true,
+            py::arg("dtype") = DataType::FLOAT,
+            py::arg("device") = BackendType::CUDA,
+            py::arg("name") = "Conv2d")
+        .def("forward", &Conv2d::forward)
+        .def("set_params", &Conv2d::set_params,
+            py::arg("params"),
+            py::arg("dtype")=DataType::FLOAT,
+            py::arg("device")=BackendType::CUDA)
+        .def("to_half", &Conv2d::to_half)
+        .def("see_weight", &Conv2d::see_weight)
+        .def_readwrite("weight", &Conv2d::weight) // 将 weight 作为属性公开
+        .def_readwrite("bias", &Conv2d::bias) // 将 bias 作为属性公开
         ;
 
     py::class_<Embedding, Module, std::shared_ptr<Embedding>>(nn, "Embedding")

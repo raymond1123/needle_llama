@@ -120,9 +120,6 @@ protected:
     using cached_data_type = std::shared_ptr<BaseTensor<Dtype>>;
 
 public:
-    MatMulOp(std::vector<int> axes, OpType op_type):
-        GenericOp<Dtype>(op_type),  _num_blocks(0) {}
-
     MatMulOp(OpType op_type): GenericOp<Dtype>(op_type), _num_blocks(0) {}
 
     virtual cached_data_type compute(std::vector<cached_data_type> inputs) override {

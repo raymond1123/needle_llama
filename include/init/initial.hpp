@@ -46,20 +46,21 @@ std::shared_ptr<NdlTensor> xavier_normal(std::vector<int32_t> shape,
     return randn_shptr(shape, 0.0, std, dtype, device);
 }
 
-std::shared_ptr<NdlTensor> kaiming_uniform(std::vector<int32_t> shape, 
+std::shared_ptr<NdlTensor> kaiming_uniform(int32_t fan_in,
+                              std::vector<int32_t> shape, 
                               DataType dtype=DataType::FLOAT,
                               BackendType device=BackendType::CUDA,
                               std::string nonlinearity="relu") {
 
-    assert(shape.size()==2 && "dimension of xavier_uniform shape must be 2");
+    //assert(shape.size()==2 && "dimension of xavier_uniform shape must be 2");
     assert(nonlinearity=="relu" && "only relu supported currently");
 
-    auto scope = [](float fan_in) { 
+    auto scope = [](int32_t fan_in) { 
         float gain = sqrt(2.0);
         return gain*sqrt(3.0/(float)fan_in);
     };
 
-    float high = scope(shape[0]);
+    float high = scope(fan_in);
 
     return rand_shptr(shape, -high, high, dtype, device);
 }

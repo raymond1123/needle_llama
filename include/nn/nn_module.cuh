@@ -7,7 +7,8 @@
 static std::unordered_map<std::string, int> SubModulesMap = {
         {"<class 'needle.nn.Module'>", 0},
         {"<class 'needle.nn.Sequential'>", 1},
-        {"<class 'needle.nn.Linear'>", 2}
+        {"<class 'needle.nn.Linear'>", 2},
+        {"<class 'needle.nn.Conv2d'>", 3}
     };
 
 /* special Tensor that represents parameters */

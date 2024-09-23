@@ -30,5 +30,7 @@
 #include "ops/bp/embedding.cuh"
 #include "ops/bp/where.cuh"
 #include "ops/bp/mask.cuh"
+#include "ops/bp/conv2d.cuh"
+#include "ops/bp/as_stride.cuh"
 
 #endif

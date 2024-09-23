@@ -7,36 +7,41 @@
 
 namespace py = pybind11;
 
-class Linear: public Module {
+class Conv2d: public Module {
 
 public:
     using param_type = std::shared_ptr<NdlTensor>;
     using module_type = std::shared_ptr<Module>;
 
-    Linear(int in_features, int out_features, 
+    Conv2d(int in_channels, int out_channels, 
+           int kernel_size, int stride=1,
            bool need_bias=true, 
            DataType dtype=DataType::FLOAT,
            BackendType device=BackendType::CUDA, 
-           std::string name="Linear"): 
+           std::string name="Conv2d"): 
         Module(std::vector<module_type>(), name, dtype, device), 
-        _need_bias(need_bias), 
-        _in_features(in_features), _out_features(out_features) {
+        _in_channels(in_channels), _out_channels(out_channels), 
+        _padding((kernel_size-1)/2), _kernel_size(kernel_size), 
+        _stride(stride), _need_bias(need_bias) {
 
-            /* weight.shape = (out_feat, in_feat)*/
-            std::vector<int32_t> weight_shape = {_in_features, _out_features};
-            weight = kaiming_uniform(weight_shape[0], weight_shape, dtype, device, "relu");
+            /* weight.shape = (in_channels, out_channels)*/
+            std::vector<int32_t> weight_shape = {_kernel_size, _kernel_size, 
+                                                 _in_channels, _out_channels};
+            weight = kaiming_uniform(_in_channels*_kernel_size*_kernel_size, 
+                                     weight_shape, dtype, device, "relu");
 
-            if(need_bias) {
-                /* bias.shape = (1, out_feat)*/
-                std::vector<int32_t> bias_shape = {1, _out_features};
-                bias = kaiming_uniform(bias_shape[0], bias_shape, dtype, device, "relu");
+            if(_need_bias) {
+                float bias_bound = 1/pow((_in_channels*pow(_kernel_size,2.0)), 0.5);
+                /* bias.shape = (1, out_channels)*/
+                std::vector<int32_t> bias_shape = {1, _out_channels};
+                bias = rand_shptr(bias_shape, -bias_bound, bias_bound, dtype, device);
             }
 
             this->_params.push_back(weight);
             this->_params.push_back(bias);
     }
 
-    ~Linear() { 
+    ~Conv2d() { 
         for(auto& p: this->_params)
             p.reset();
     }
@@ -45,14 +50,16 @@ public:
                     DataType dtype=DataType::FLOAT,
                     BackendType device=BackendType::CUDA) {
         if(_need_bias) {
-            assert(params.size()==2 && "param number of Linear with bias must be 2");
+            assert(params.size()==2 && "param number of Conv2d with bias must be 2");
             bias.reset(new NdlTensor(params[1], dtype, device));
         } else 
-            assert(params.size()==1 && "param number of Linear without bias must be 1");
+            assert(params.size()==1 && "param number of Conv2d without bias must be 1");
 
         weight.reset(new NdlTensor(params[0], dtype, device));
-        _in_features = weight->shape()[0];
-        _out_features = weight->shape()[1];
+
+        _kernel_size = weight->shape()[0];
+        _in_channels = weight->shape()[2];
+        _out_channels = weight->shape()[3];
         this->dtype = dtype;
 
         this->_params[0] = weight;
@@ -63,16 +70,13 @@ public:
 
     NdlTensor forward(const NdlTensor& tensor) final {
 
-        //auto x = tensor;
-        int in_feat_idx = tensor.shape().size()- 1;
-
-        assert(tensor.shape()[in_feat_idx]==_in_features &&"shape of input tensor and weight does not match");
-
-        const auto& w = *weight;
-        auto out = tensor.matmul(w);
+        //const auto x = tensor.permute({0,2,3,1});
+        //auto out = x.conv2d(*weight, _stride, _padding);
+        auto out = tensor.conv2d(*weight, _stride, _padding);
 
         if(_need_bias) {
-            out += bias->broadcast_to(out.shape());
+            std::vector<int32_t> reshape_shape = {1,1,1, _out_channels};
+            out += (bias->reshape(reshape_shape)).broadcast_to(out.shape());
         }
 
         return out;
@@ -103,6 +107,9 @@ public:
 
 private:
     bool _need_bias;
-    int _in_features;
-    int _out_features;
+    int _in_channels;
+    int _out_channels;
+    int _stride;
+    int _padding;
+    int _kernel_size;
 };

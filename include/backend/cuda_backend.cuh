@@ -8,16 +8,17 @@ template<typename Dtype>
 __global__ void CompactKernel(const Dtype* a, Dtype* out, 
                               size_t size, CudaVec shape,
                               CudaVec strides, size_t offset) {
-    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     size_t indices[MAX_VEC_SIZE];
-    get_index(gid, indices, shape);
+    get_index(tid, indices, shape);
 
     size_t in_idx = offset;
     for (int i=0; i<shape.size; ++i)
         in_idx += indices[i]*strides.data[i];
 
-    if (gid<size) {
-        out[gid] = a[in_idx];
+    if (tid<size) {
+        out[tid] = a[in_idx];
     }
 }
 
@@ -236,4 +237,3 @@ std::shared_ptr<BaseArray<Dtype>> CudaArray<Dtype>::compact(size_t size,
 }
 
 #endif
-

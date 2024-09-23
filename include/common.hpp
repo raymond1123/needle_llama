@@ -83,7 +83,7 @@ enum class OpType: int {
     Stack = 27,
     Split = 29,
     LogSumExp= 30,
-    Conv = 31,
+    Conv2d = 31,
     RoTri = 32,
     RMSNorm = 33,
     RotaryEmb= 34,
@@ -91,7 +91,8 @@ enum class OpType: int {
     Embedding = 36,
     Silu = 37,
     Where = 38,
-    Mask=39
+    Mask=39,
+    AS_STRIDE=40
 };
 
 enum class DataType: int{

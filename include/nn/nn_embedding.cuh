@@ -21,7 +21,7 @@ public:
         _vocab_size(vocab_size), _dim(dim) {
 
         std::vector<int32_t> weight_shape = {_vocab_size, _dim};
-        token_emb = kaiming_uniform(weight_shape, dtype, device, "relu");
+        token_emb = kaiming_uniform(weight_shape[0], weight_shape, dtype, device, "relu");
         this->_params.push_back(token_emb);
     }
 

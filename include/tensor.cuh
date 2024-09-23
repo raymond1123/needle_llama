@@ -111,13 +111,15 @@ public:
     Tensor broadcast_to(std::vector<int32_t> shape);
     Tensor slice(std::vector<py::object> indices); /* getitem */
     void setitem(std::vector<py::object> indices, Tensor& other);
-    Tensor permute(std::vector<int> axes);
-    Tensor transpose(std::vector<int> axes);
+    Tensor permute(std::vector<int> axes) const;
+    Tensor transpose(std::vector<int> axes) const;
     Tensor summation(std::vector<int> axes);
     Tensor summation();
     std::pair<Tensor<float>, Tensor<Dtype>> argmax(int dim, bool keepdim);
-    Tensor padding(std::vector<int> axes);
+    Tensor padding(std::vector<int> axes, Dtype val=0);
     Tensor dilate(uint32_t dilation, std::vector<int> axes);
+    Tensor as_strided(std::vector<int32_t> shape, std::vector<int32_t> stride) const;
+    Tensor conv2d(const Tensor& weight, int stride, int padding) const;
     Tensor relu();
     Tensor silu();
     Tensor tanh();
@@ -791,6 +793,33 @@ Tensor<Dtype> Tensor<Dtype>::matmul(const Tensor<Dtype>& other) const {
 }
 
 template<typename Dtype>
+Tensor<Dtype> Tensor<Dtype>::conv2d(const Tensor& weight, 
+                                    int stride, int padding) const {
+    std::shared_ptr<GenericOp<Dtype>> op = 
+        std::make_shared<Conv2dOp<Dtype>>(OpType::Conv2d, stride, padding);
+
+    std::vector<cached_data_type> inputs;
+    inputs.push_back(__cached_data);
+    inputs.push_back(weight.__cached_data);
+    //printf("===============+\n");
+
+    return (*op)(op, inputs, device);
+}
+
+template<typename Dtype>
+Tensor<Dtype> Tensor<Dtype>::as_strided(std::vector<int32_t> shape, 
+                                       std::vector<int32_t> stride) const {
+    std::shared_ptr<GenericOp<Dtype>> op = 
+        std::make_shared<As_strideOp<Dtype>>(OpType::AS_STRIDE, shape, stride);
+
+    std::vector<cached_data_type> inputs;
+    inputs.push_back(__cached_data);
+
+    return (*op)(op, inputs, device);
+}
+
+
+template<typename Dtype>
 Tensor<Dtype> Tensor<Dtype>::embedding(const Tensor<float>& index) {
 
     std::shared_ptr<GenericOp<Dtype>> op = 
@@ -856,7 +885,7 @@ Tensor<Dtype> Tensor<Dtype>::broadcast_to(std::vector<int32_t> shape) {
 }
 
 template<typename Dtype>
-Tensor<Dtype> Tensor<Dtype>::permute(std::vector<int> axes) {
+Tensor<Dtype> Tensor<Dtype>::permute(std::vector<int> axes) const {
 
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<PermuteOp<Dtype>>(axes, OpType::Permute);
@@ -869,7 +898,7 @@ Tensor<Dtype> Tensor<Dtype>::permute(std::vector<int> axes) {
 }
 
 template<typename Dtype>
-Tensor<Dtype> Tensor<Dtype>::transpose(std::vector<int> axes) {
+Tensor<Dtype> Tensor<Dtype>::transpose(std::vector<int> axes) const {
 
     std::shared_ptr<GenericOp<Dtype>> op = 
         std::make_shared<TransposeOp<Dtype>>(axes, OpType::Transpose);
@@ -987,9 +1016,9 @@ std::pair<Tensor<float>, Tensor<Dtype>> Tensor<Dtype>::argmax(int dim, bool keep
    The padding axes by which to pad some dimensions of input are described starting from the last dimension and moving forward (the same as pytorch)
  */
 template<typename Dtype>
-Tensor<Dtype> Tensor<Dtype>::padding(std::vector<int> axes) {
+Tensor<Dtype> Tensor<Dtype>::padding(std::vector<int> axes, Dtype val) {
     std::shared_ptr<GenericOp<Dtype>> op = 
-        std::make_shared<PaddingOp<Dtype>>(axes, OpType::Padding);
+        std::make_shared<PaddingOp<Dtype>>(OpType::Padding, axes, val);
 
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
