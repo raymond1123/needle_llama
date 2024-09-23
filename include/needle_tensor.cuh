@@ -465,6 +465,15 @@ public:
         }, this->__tensor);
     }
 
+    NdlTensor flip(const std::vector<int>& axes) {
+        return std::visit([&](auto& tensor) -> NdlTensor {
+            auto result = NdlTensor(tensor.flip(axes));
+            result.dtype = tensor.dtype;
+            result.device = tensor.device;
+            return result;
+        }, this->__tensor);
+    }
+
     NdlTensor rms_norm(const NdlTensor& weight) {
         return std::visit([&](auto& tensor, const auto& weight) -> NdlTensor {
             using LhsType = std::decay_t<decltype(tensor)>;

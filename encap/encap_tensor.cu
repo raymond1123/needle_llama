@@ -43,6 +43,7 @@ void bind_tensor(py::module& m) {
             py::arg("dim"),
             py::arg("keepdim") = false) 
         .def("padding", &NdlTensor::padding)
+        .def("flip", &NdlTensor::flip)
         .def("permute", &NdlTensor::permute)
         .def("transpose", &NdlTensor::transpose)
         .def("as_strided", &NdlTensor::as_strided)
