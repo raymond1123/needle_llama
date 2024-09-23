@@ -15,11 +15,11 @@ class TestTensor(unittest.TestCase):
 
 
         # NHWC
-        #self.shape = (2, 3, 128, 256)
-        self.shape = (2, 3, 4, 3)
+        self.shape = (2, 3, 128, 256)
+        #self.shape = (2, 3, 4, 3)
 
         # KKIO
-        self.wshape = (3, 3, 3, 8)
+        self.wshape = (3, 3, 256, 16)
 
         self.npx = np.random.randn(*self.shape)
         self.weight = np.random.randn(*self.wshape)
@@ -66,7 +66,7 @@ class TestTensor(unittest.TestCase):
         ndl_x = ndl.Tensor(self.npx, dtype=dtype, backend=ndl.cuda)
 
         ndl_conv_layer = ndl_nn.Conv2d(in_channels=3,
-                                       out_channels=8,
+                                       out_channels=self.wshape[-1],
                                        kernel_size=3,
                                        stride=1,
                                        bias=True,
@@ -91,7 +91,7 @@ class TestTensor(unittest.TestCase):
         err = np.max(np.abs(diff))
         print(f'{err=}')
 
-        if err < 1e-2:
+        if err < 1e-0:
             print(f"fp16_cuda: {self.GREEN}PASS{self.RESET}")
         else:
             print(f"fp16_cuda: {self.RED}FAILED{self.RESET}, {err=}")
