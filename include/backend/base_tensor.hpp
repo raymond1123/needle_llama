@@ -103,6 +103,7 @@ size_t BaseTensor<Dtype>::_prod(const std::vector<int32_t>& shape) {
 
 template<typename Dtype>
 void BaseTensor<Dtype>::compact_strides() {
+    __strides = __shape;
     __strides[__strides.size()-1] = 1;
 
     /* 

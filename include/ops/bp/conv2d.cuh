@@ -7,63 +7,6 @@ template<typename Dtype> class CpuTensor;
 template<typename Dtype> class CudaTensor;
 
 template<typename Dtype>
-class iTanh {
-public:
-    __device__ void operator()(size_t n,
-                               const Dtype* a, 
-                               Dtype* out) {
-        if constexpr (std::is_same<Dtype, __half>::value)
-            __half_tanh(n, a, out);
-        else 
-            __fp32_tanh(n, a, out);
-    }
-
-private:
-    __device__ void __half_tanh(size_t n,
-                               const Dtype* a, 
-                               Dtype* out) {
-        size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
-        if (tx < n)
-            out[tx] = __float2half(tanhf(__half2float(a[tx])));
-    }
-
-    __device__ void __fp32_tanh(size_t n,
-                               const Dtype* a, 
-                               Dtype* out) {
-        size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
-        if (tx < n) 
-            out[tx] = tanhf(a[tx]);
-    }
-};
-
-template<typename Dtype>
-class iTanhGrad {
-public:
-    __device__ void operator()(size_t n,
-                               const Dtype* a, 
-                               const Dtype* b, 
-                               Dtype* out) {
-
-        size_t tx = blockDim.x*blockIdx.x+threadIdx.x;
-        if(tx >=n) return;
-    }
-};
-
-template<typename Dtype>
-__global__ void __launch_bounds__(kBlockSize)
-iApplyTanh(size_t n, const Dtype* a, Dtype* out) {
-    auto functor = iTanh<Dtype>();
-    functor(n, a, out);
-}
-
-template<typename Dtype>
-__global__ void __launch_bounds__(kBlockSize)
-iApplyTanhGrad(size_t n, const Dtype* a, const Dtype* b, Dtype* out) {
-    auto functor = iTanhGrad<Dtype>();
-    functor(n, a, b, out);
-}
-
-template<typename Dtype>
 class Conv2dOp: public GenericOp<Dtype> {
 protected:
     using cached_data_type = std::shared_ptr<BaseTensor<Dtype>>;
@@ -92,12 +35,15 @@ public:
         assert(_kernel_shape.size()==4 && "size of input shape must be 4");
 
         inputs[0]->compact();
+        inputs[1]->compact();
+        cached_data_type input_img = inputs[0]->deep_cpy_cached_data();
+        cached_data_type kernel = inputs[1]->deep_cpy_cached_data();
 
         /* padding first */
         std::vector<int32_t> padding_axes = {0,0, _padding,_padding, _padding,_padding, 0,0};
         std::shared_ptr<GenericOp<Dtype>> padding_op = 
             std::make_shared<PaddingOp<Dtype>>(OpType::Padding, padding_axes, 0);
-        cached_data_type pad_cache = padding_op->compute({inputs[0]});
+        cached_data_type pad_cache = padding_op->compute({input_img});
 
         /* TODO */
         assert(_kernel_shape[0]==_kernel_shape[1] && "kernel size must be equal");
@@ -118,26 +64,67 @@ public:
         im2col->compact();
         im2col->set_shape(_im2col_matmul_shape);
 
-        cached_data_type kernel = inputs[1];
         kernel->compact();
         kernel->set_shape(_kernel_matmul_shape);
 
         std::shared_ptr<GenericOp<Dtype>> matmul_op= 
             std::make_shared<MatMulOp<Dtype>>(OpType::MatMul);
         cached_data_type out = matmul_op->compute({im2col, kernel});
-        out->compact();
+
         out->set_shape(_out_shape);
+        out->compact();
+        //out->compact_strides();
 
         out->cached = true;
         out->is_compact = true;
 
+        /* set kernel shape back for backprop */
+        kernel->set_shape(_kernel_shape);
+        kernel->compact_strides();
+
         return out;
     }
 
-    /* TODO */
     virtual std::vector<cached_data_type> gradient(cached_data_type out_grad, 
                                                    cached_data_type tensor) override {
-        return {out_grad};
+
+        auto inputs = tensor->inputs;
+        int kernel_size = inputs[1]->shape()[0];
+
+        if(_stride > 1) {
+            std::vector<int> dilate_axes = {0,1};
+            std::shared_ptr<GenericOp<Dtype>> dilate_op = 
+                std::make_shared<DilateOp<Dtype>>(OpType::Dilate, dilate_axes, _stride-1);
+            out_grad = dilate_op->compute({out_grad}); 
+        }
+        
+        /* x grad */
+        std::vector<int> flip_axes = {0,1}, trans_axes = {2,3};
+        std::shared_ptr<GenericOp<Dtype>> flip_op = 
+            std::make_shared<FlipOp<Dtype>>(OpType::Flip, flip_axes);
+        std::shared_ptr<GenericOp<Dtype>> transpose_op = 
+            std::make_shared<TransposeOp<Dtype>>(trans_axes, OpType::Transpose);
+        std::shared_ptr<GenericOp<Dtype>> conv2d_op = 
+            std::make_shared<Conv2dOp<Dtype>>(OpType::Conv2d, 1, kernel_size-1-_padding);
+
+        auto w_flip = flip_op->compute({inputs[1]});
+        auto w_permute = transpose_op->compute({w_flip});
+        auto x_grad = conv2d_op->compute({out_grad, w_permute});
+
+        /* w grad */
+        trans_axes = {0,3};
+        std::vector<int> permute_axes = {1,2,0,3};
+        transpose_op = std::make_shared<TransposeOp<Dtype>>(trans_axes, OpType::Transpose);
+        std::shared_ptr<GenericOp<Dtype>> permute_op = 
+            std::make_shared<PermuteOp<Dtype>>(permute_axes, OpType::Permute);
+        conv2d_op = std::make_shared<Conv2dOp<Dtype>>(OpType::Conv2d, 1, _padding);
+
+        auto x_permute = transpose_op->compute({inputs[0]});
+        auto grad_permute = permute_op->compute({out_grad});
+        auto w_grad = conv2d_op->compute({x_permute, grad_permute});
+        w_grad = permute_op->compute({w_grad});
+
+        return {x_grad, w_grad};
     }
 
 protected:

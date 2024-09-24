@@ -57,7 +57,7 @@ public:
     inline cached_fp32_type cached_data_fp32() const { return __cached_data; }
     inline py::array_t<float> to_numpy() { return __cached_data->to_numpy(); }
     inline void from_buffer() { __cached_data->from_buffer(); }
-    inline py::array_t<Dtype> grad() { return __cached_data->grad->to_numpy(); }
+    inline py::array_t<float> grad() { return __cached_data->grad->to_numpy(); }
     inline std::vector<int32_t> shape() const { return __cached_data->shape(); }
     inline std::vector<int32_t> strides() { return __cached_data->strides(); }
     inline size_t offset() { return __cached_data->offset(); }
@@ -801,7 +801,6 @@ Tensor<Dtype> Tensor<Dtype>::conv2d(const Tensor& weight,
     std::vector<cached_data_type> inputs;
     inputs.push_back(__cached_data);
     inputs.push_back(weight.__cached_data);
-    //printf("===============+\n");
 
     return (*op)(op, inputs, device);
 }
@@ -1229,8 +1228,15 @@ template<typename Dtype>
 void Tensor<Dtype>::backward() {
     __print_tensor_info("backward");
 
+    DataType grad_dtype; 
+    if constexpr (std::is_same_v<Dtype, float>) {
+        grad_dtype = DataType::FLOAT;
+    } else {
+        grad_dtype = DataType::HALF;
+    }
+
     std::shared_ptr<Tensor<Dtype>> out_grad = 
-        std::make_shared<Tensor<Dtype>>(device);
+        std::make_shared<Tensor<Dtype>>(grad_dtype, device);
 
     if (device== BackendType::CPU) {
         if constexpr (std::is_same_v<Dtype, float>) {
@@ -1267,14 +1273,20 @@ void Tensor<Dtype>::__compute_gradient(cached_data_type out_tensor,
     std::reverse(reverse_topo_order.begin(), reverse_topo_order.end());
 
     #ifdef DEBUG
+    printf("backward graph: \n");
     for(auto& tensor: reverse_topo_order) {
         int op_type = -1;
         if (tensor->op != nullptr) {
             op_type = tensor->op->op_type();
         } 
 
-        printf("tensor_idx=%d, op=%d, addr=%p-->\n", 
-               tensor->tensor_idx, op_type, &tensor);
+        std::string tensor_shape = "(";
+        for(auto& s: tensor->shape())
+            tensor_shape += std::to_string(s)+",";
+        tensor_shape += ")";
+
+        printf("tensor_idx=%d, tensor_shape=%s, op=%d, addr=%p-->\n", 
+               tensor->tensor_idx, tensor_shape.c_str(), op_type, &tensor);
     }
     printf("\n");
     #endif

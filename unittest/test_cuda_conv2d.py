@@ -15,32 +15,35 @@ class TestTensor(unittest.TestCase):
 
 
         # NHWC
-        self.shape = (2, 3, 128, 256)
-        #self.shape = (2, 3, 4, 3)
+        #self.shape = (2, 128, 128, 256)
+        self.shape = (2, 4, 4, 3)
 
         # KKIO
-        self.wshape = (3, 3, 256, 16)
+        #self.wshape = (3, 3, 256, 16)
+        self.wshape = (3, 3, 3, 2)
 
         self.npx = np.random.randn(*self.shape)
         self.weight = np.random.randn(*self.wshape)
         self.bias = np.random.randn(self.wshape[-1])
 
     def tch_conv_reference(self):
-        tch_x = torch.from_numpy(self.npx).to(torch.float32)
-        tch_w = torch.from_numpy(self.weight).to(torch.float32)
-        tch_bias = torch.from_numpy(self.bias).to(torch.float32)
+        self.tch_x = torch.from_numpy(self.npx).to(torch.float32).requires_grad_(True)
+        self.tch_w = torch.from_numpy(self.weight).to(torch.float32).requires_grad_(True)
+        self.tch_bias = torch.from_numpy(self.bias).to(torch.float32).requires_grad_(True)
 
         # NHWC -> NCHW
-        tch_x = tch_x.permute(0,3,1,2)
+        self.tch_x = self.tch_x.permute(0,3,1,2)
+        self.tch_x.retain_grad()  # 保留梯度信息
 
         # KKIO -> OIKK
-        tch_w = tch_w.permute(3,2,0,1)
+        self.tch_w = self.tch_w.permute(3,2,0,1)
+        self.tch_w.retain_grad()  # 保留梯度信息
 
         # run convolution
-        out = tch_nn.functional.conv2d(tch_x, tch_w, tch_bias, stride=1, padding=1)
+        out = tch_nn.functional.conv2d(self.tch_x, self.tch_w, self.tch_bias, stride=1, padding=1)
 
         # NCHW -> NHWC
-        return out.permute(0,2,3,1).contiguous().numpy()
+        return out.permute(0,2,3,1).contiguous()
 
     def np_conv_im2col(self):
         pad_width = ((0, 0),(1, 1),(1, 1),(0, 0))
@@ -63,7 +66,7 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(tensor.shape, npx.shape)
 
     def ndl_conv_im2col(self, dtype):
-        ndl_x = ndl.Tensor(self.npx, dtype=dtype, backend=ndl.cuda)
+        self.ndl_x = ndl.Tensor(self.npx, dtype=dtype, backend=ndl.cuda)
 
         ndl_conv_layer = ndl_nn.Conv2d(in_channels=3,
                                        out_channels=self.wshape[-1],
@@ -76,16 +79,16 @@ class TestTensor(unittest.TestCase):
         if dtype==ndl.fp16:
             ndl_conv_layer.half()
 
-        ndl_out = ndl_conv_layer(ndl_x)
-        ndl_out = ndl_out.to_numpy()
+        ndl_out = ndl_conv_layer(self.ndl_x)
+        #ndl_out = ndl_out.to_numpy()
 
         return ndl_out
 
     def test_add_fp16_cuda(self):
         # CUDA, fp16
-        tch_out = self.tch_conv_reference()
+        tch_out = self.tch_conv_reference().detach().numpy()
         np_out = self.np_conv_im2col()
-        ndl_out = self.ndl_conv_im2col(dtype=ndl.fp16)
+        ndl_out = self.ndl_conv_im2col(dtype=ndl.fp16).to_numpy()
 
         diff = tch_out - ndl_out
         err = np.max(np.abs(diff))
@@ -98,9 +101,9 @@ class TestTensor(unittest.TestCase):
 
     def test_add_fp32_cuda(self):
         # CUDA, fp32
-        tch_out = self.tch_conv_reference()
+        tch_out = self.tch_conv_reference().detach().numpy()
         np_out = self.np_conv_im2col()
-        ndl_out = self.ndl_conv_im2col(dtype=ndl.fp32)
+        ndl_out = self.ndl_conv_im2col(dtype=ndl.fp32).to_numpy()
 
         diff = tch_out - ndl_out
         err = np.max(np.abs(diff))
@@ -111,6 +114,51 @@ class TestTensor(unittest.TestCase):
         else:
             print(f"fp32_cuda: {self.RED}FAILED{self.RESET}, {err=}")
 
+    def test_fp32_backprop_cuda(self):
+        # CUDA, fp32
+        tch_out = torch.sum(self.tch_conv_reference())
+        ndl_out = self.ndl_conv_im2col(dtype=ndl.fp32).summation()
+
+        tch_out.backward()
+        tch_x_grad = self.tch_x.grad.permute(0,2,3,1).cpu().numpy()
+        print(self.tch_x.grad.shape)
+        print(self.tch_w.grad.shape)
+        print(self.tch_bias.grad.shape)
+
+        ndl_out.backward()
+        ndl_x_grad = self.ndl_x.grad()
+
+        diff = ndl_x_grad - tch_x_grad
+        err = np.max(np.abs(diff))
+        print(f'{err=}')
+
+        if err < 1e-5:
+            print(f"fp32_cuda: {self.GREEN}PASS{self.RESET}")
+        else:
+            print(f"fp32_cuda: {self.RED}FAILED{self.RESET}, {err=}")
+
+    def test_fp16_backprop_cuda(self):
+        # CUDA, fp32
+        tch_out = torch.sum(self.tch_conv_reference())
+        ndl_out = self.ndl_conv_im2col(dtype=ndl.fp16).summation()
+
+        tch_out.backward()
+        tch_x_grad = self.tch_x.grad.permute(0,2,3,1).cpu().numpy()
+        print(self.tch_x.grad.shape)
+        print(self.tch_w.grad.shape)
+        print(self.tch_bias.grad.shape)
+
+        ndl_out.backward()
+        ndl_x_grad = self.ndl_x.grad()
+
+        diff = ndl_x_grad - tch_x_grad
+        err = np.max(np.abs(diff))
+        print(f'{err=}')
+
+        if err < 1e-2:
+            print(f"fp16_cuda: {self.GREEN}PASS{self.RESET}")
+        else:
+            print(f"fp16_cuda: {self.RED}FAILED{self.RESET}, {err=}")
 
 if __name__ == '__main__':
     unittest.main()

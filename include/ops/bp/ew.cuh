@@ -253,7 +253,6 @@ public:
                                                inputs[0]->device());
         }
 
-        // TODO use function<> here, not if else in kernel function
         if (num_inputs==2) {
             ApplyEW<Dtype><<<_num_blocks, kBlockSize, 0>>>(this->_op_type, _n,
                                                        cached_data->cached_ptr(), 

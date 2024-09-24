@@ -65,10 +65,21 @@ public:
         return *this;
     }
 
+    inline void backward() {
+        std::visit([](auto& tensor) {
+            tensor.backward();
+        }, __tensor);
+    }
 
     inline py::array_t<float> to_numpy() {
         return std::visit([](auto& tensor) -> py::array_t<float> {
             return tensor.to_numpy();
+        }, __tensor);
+    }
+
+    inline py::array_t<float> grad() {
+        return std::visit([](auto& tensor) -> py::array_t<float> {
+            return tensor.grad();
         }, __tensor);
     }
 

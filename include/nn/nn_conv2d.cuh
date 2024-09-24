@@ -72,11 +72,12 @@ public:
 
         //const auto x = tensor.permute({0,2,3,1});
         //auto out = x.conv2d(*weight, _stride, _padding);
-        auto out = tensor.conv2d(*weight, _stride, _padding);
+        NdlTensor out = tensor.conv2d(*weight, _stride, _padding);
 
         if(_need_bias) {
             std::vector<int32_t> reshape_shape = {1,1,1, _out_channels};
-            out += (bias->reshape(reshape_shape)).broadcast_to(out.shape());
+            NdlTensor ndl_bias = (bias->reshape(reshape_shape)).broadcast_to(out.shape());
+            out += ndl_bias;
         }
 
         return out;

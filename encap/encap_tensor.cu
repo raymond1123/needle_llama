@@ -26,6 +26,7 @@ void bind_tensor(py::module& m) {
         .def_readonly("device", &NdlTensor::device) // 将 device 作为属性公开
 
         .def("to_numpy", &NdlTensor::to_numpy)
+        .def("grad", &NdlTensor::grad)
         .def("half", &NdlTensor::half)
         .def("to_float", &NdlTensor::to_float)
         .def("shape", &NdlTensor::shape)
@@ -46,6 +47,7 @@ void bind_tensor(py::module& m) {
         .def("flip", &NdlTensor::flip)
         .def("dilate", &NdlTensor::dilate)
         .def("permute", &NdlTensor::permute)
+        .def("backward", &NdlTensor::backward)
         .def("transpose", &NdlTensor::transpose)
         .def("as_strided", &NdlTensor::as_strided)
         .def("reshape", &NdlTensor::reshape)
