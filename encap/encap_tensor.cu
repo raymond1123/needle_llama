@@ -208,6 +208,28 @@ void bind_module(py::module& m) {
         .def("see_weight", &Conv2d::see_weight)
         .def_readwrite("weight", &Conv2d::weight) // 将 weight 作为属性公开
         .def_readwrite("bias", &Conv2d::bias) // 将 bias 作为属性公开
+        .def_property(
+            "weight",
+            [](Conv2d& self) -> NdlTensor& {
+                // 返回解引用后的 weight 对象
+                return *(self.weight);
+            },
+            [](Conv2d& self, const NdlTensor& value) {
+                // 更新 weight 对象的内容
+                *self.weight = value;
+            }
+        )
+        .def_property(
+            "bias",
+            [](Conv2d& self) -> NdlTensor& {
+                // 返回解引用后的 bias 对象
+                return *(self.bias);
+            },
+            [](Conv2d& self, const NdlTensor& value) {
+                // 更新 bias 对象的内容
+                *self.bias = value;
+            }
+        )
         ;
 
     py::class_<Embedding, Module, std::shared_ptr<Embedding>>(nn, "Embedding")

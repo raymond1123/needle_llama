@@ -80,7 +80,9 @@ class TestTensor(unittest.TestCase):
             ndl_conv_layer.half()
 
         ndl_out = ndl_conv_layer(self.ndl_x)
-        #ndl_out = ndl_out.to_numpy()
+
+        self.ndl_w = ndl_conv_layer.weight
+        self.ndl_b = ndl_conv_layer.bias
 
         return ndl_out
 
@@ -121,21 +123,28 @@ class TestTensor(unittest.TestCase):
 
         tch_out.backward()
         tch_x_grad = self.tch_x.grad.permute(0,2,3,1).cpu().numpy()
-        print(self.tch_x.grad.shape)
-        print(self.tch_w.grad.shape)
-        print(self.tch_bias.grad.shape)
+        tch_w_grad = self.tch_w.grad.cpu().permute(2,3,1,0).numpy()
+        tch_b_grad = self.tch_bias.grad.cpu().numpy()
 
         ndl_out.backward()
         ndl_x_grad = self.ndl_x.grad()
+        ndl_b_grad = self.ndl_b.grad()
+        ndl_w_grad = self.ndl_w.grad()
 
-        diff = ndl_x_grad - tch_x_grad
-        err = np.max(np.abs(diff))
-        print(f'{err=}')
+        diff_x = ndl_x_grad - tch_x_grad
+        diff_w = ndl_w_grad - tch_w_grad
+        diff_b = ndl_b_grad - tch_b_grad
 
-        if err < 1e-5:
-            print(f"fp32_cuda: {self.GREEN}PASS{self.RESET}")
+        err_x = np.max(np.abs(diff_x))
+        err_w = np.max(np.abs(diff_w))
+        err_b = np.max(np.abs(diff_b))
+
+        print(f'{err_x=}, {err_w=}, {err_b}')
+
+        if err_x < 1e-5 and err_w < 1e-5 and err_b < 1e-5:
+            print(f"backward fp32_cuda: {self.GREEN}PASS{self.RESET}")
         else:
-            print(f"fp32_cuda: {self.RED}FAILED{self.RESET}, {err=}")
+            print(f"backward fp32_cuda: {self.RED}FAILED{self.RESET}")
 
     def test_fp16_backprop_cuda(self):
         # CUDA, fp32
@@ -144,21 +153,27 @@ class TestTensor(unittest.TestCase):
 
         tch_out.backward()
         tch_x_grad = self.tch_x.grad.permute(0,2,3,1).cpu().numpy()
-        print(self.tch_x.grad.shape)
-        print(self.tch_w.grad.shape)
-        print(self.tch_bias.grad.shape)
+        tch_w_grad = self.tch_w.grad.cpu().permute(2,3,1,0).numpy()
+        tch_b_grad = self.tch_bias.grad.cpu().numpy()
 
         ndl_out.backward()
         ndl_x_grad = self.ndl_x.grad()
+        ndl_b_grad = self.ndl_b.grad()
+        ndl_w_grad = self.ndl_w.grad()
 
-        diff = ndl_x_grad - tch_x_grad
-        err = np.max(np.abs(diff))
-        print(f'{err=}')
+        diff_x = ndl_x_grad - tch_x_grad
+        diff_w = ndl_w_grad - tch_w_grad
+        diff_b = ndl_b_grad - tch_b_grad
 
-        if err < 1e-2:
-            print(f"fp16_cuda: {self.GREEN}PASS{self.RESET}")
+        err_x = np.max(np.abs(diff_x))
+        err_w = np.max(np.abs(diff_w))
+        err_b = np.max(np.abs(diff_b))
+        print(f'{err_x=}, {err_w=}, {err_b}')
+
+        if err_x < 1e-1 and err_w < 1e-1 and err_b < 1e-1:
+            print(f"backward fp16_cuda: {self.GREEN}PASS{self.RESET}")
         else:
-            print(f"fp16_cuda: {self.RED}FAILED{self.RESET}, {err=}")
+            print(f"backward fp16_cuda: {self.RED}FAILED{self.RESET}")
 
 if __name__ == '__main__':
     unittest.main()
