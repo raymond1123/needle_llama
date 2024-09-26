@@ -18,7 +18,8 @@ public:
            bool need_bias=true, 
            DataType dtype=DataType::FLOAT,
            BackendType device=BackendType::CUDA, 
-           std::string name="Conv2d"): 
+           std::string name="Conv2d", 
+           std::optional<int> seed = std::nullopt): 
         Module(std::vector<module_type>(), name, dtype, device), 
         _in_channels(in_channels), _out_channels(out_channels), 
         _padding((kernel_size-1)/2), _kernel_size(kernel_size), 
@@ -28,13 +29,13 @@ public:
             std::vector<int32_t> weight_shape = {_kernel_size, _kernel_size, 
                                                  _in_channels, _out_channels};
             weight = kaiming_uniform(_in_channels*_kernel_size*_kernel_size, 
-                                     weight_shape, dtype, device, "relu");
+                                     weight_shape, dtype, device, "relu", seed);
 
             if(_need_bias) {
                 float bias_bound = 1/pow((_in_channels*pow(_kernel_size,2.0)), 0.5);
                 /* bias.shape = (1, out_channels)*/
                 std::vector<int32_t> bias_shape = {1, _out_channels};
-                bias = rand_shptr(bias_shape, -bias_bound, bias_bound, dtype, device);
+                bias = rand_shptr(bias_shape, seed, -bias_bound, bias_bound, dtype, device);
             }
 
             this->_params.push_back(weight);

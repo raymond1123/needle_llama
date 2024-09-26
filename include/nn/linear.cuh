@@ -17,19 +17,20 @@ public:
            bool need_bias=true, 
            DataType dtype=DataType::FLOAT,
            BackendType device=BackendType::CUDA, 
-           std::string name="Linear"): 
+           std::string name="Linear", 
+           std::optional<int> seed = std::nullopt): 
         Module(std::vector<module_type>(), name, dtype, device), 
         _need_bias(need_bias), 
         _in_features(in_features), _out_features(out_features) {
 
             /* weight.shape = (out_feat, in_feat)*/
             std::vector<int32_t> weight_shape = {_in_features, _out_features};
-            weight = kaiming_uniform(weight_shape[0], weight_shape, dtype, device, "relu");
+            weight = kaiming_uniform(weight_shape[0], weight_shape, dtype, device, "relu", seed);
 
             if(need_bias) {
                 /* bias.shape = (1, out_feat)*/
                 std::vector<int32_t> bias_shape = {1, _out_features};
-                bias = kaiming_uniform(bias_shape[0], bias_shape, dtype, device, "relu");
+                bias = kaiming_uniform(bias_shape[0], bias_shape, dtype, device, "relu", seed);
             }
 
             this->_params.push_back(weight);

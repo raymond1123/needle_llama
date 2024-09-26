@@ -15,7 +15,8 @@ namespace py = pybind11;
 std::shared_ptr<NdlTensor> xavier_uniform(std::vector<int32_t> shape, 
                              float gain=1.0,
                              DataType dtype=DataType::FLOAT,
-                             BackendType device=BackendType::CUDA) {
+                             BackendType device=BackendType::CUDA, 
+                             std::optional<int> seed = std::nullopt) {
 
     assert(shape.size()==2 && "dimension of xavier_uniform shape must be 2");
 
@@ -26,13 +27,14 @@ std::shared_ptr<NdlTensor> xavier_uniform(std::vector<int32_t> shape,
 
     float high = gain*scope(shape[0], shape[1]);
 
-    return rand_shptr(shape, -high, high, dtype, device);
+    return rand_shptr(shape, seed, -high, high, dtype, device);
 }
 
 std::shared_ptr<NdlTensor> xavier_normal(std::vector<int32_t> shape, 
-                             float gain=1.0,
+                             float gain=1.0, 
                              DataType dtype=DataType::FLOAT,
-                             BackendType device=BackendType::CUDA) {
+                             BackendType device=BackendType::CUDA,
+                             std::optional<int> seed = std::nullopt) {
 
     assert(shape.size()==2 && "dimension of xavier_uniform shape must be 2");
 
@@ -43,14 +45,15 @@ std::shared_ptr<NdlTensor> xavier_normal(std::vector<int32_t> shape,
 
     float std = gain*std_f(shape[0], shape[1]);
 
-    return randn_shptr(shape, 0.0, std, dtype, device);
+    return randn_shptr(shape, seed, 0.0, std, dtype, device);
 }
 
 std::shared_ptr<NdlTensor> kaiming_uniform(int32_t fan_in,
                               std::vector<int32_t> shape, 
                               DataType dtype=DataType::FLOAT,
                               BackendType device=BackendType::CUDA,
-                              std::string nonlinearity="relu") {
+                              std::string nonlinearity="relu",
+                              std::optional<int> seed = std::nullopt) {
 
     //assert(shape.size()==2 && "dimension of xavier_uniform shape must be 2");
     assert(nonlinearity=="relu" && "only relu supported currently");
@@ -62,13 +65,14 @@ std::shared_ptr<NdlTensor> kaiming_uniform(int32_t fan_in,
 
     float high = scope(fan_in);
 
-    return rand_shptr(shape, -high, high, dtype, device);
+    return rand_shptr(shape, seed, -high, high, dtype, device);
 }
 
-std::shared_ptr<NdlTensor> kaiming_normal(std::vector<int32_t> shape, 
+std::shared_ptr<NdlTensor> kaiming_normal(std::vector<int32_t> shape,
                              DataType dtype=DataType::FLOAT,
                              BackendType device=BackendType::CUDA,
-                             std::string nonlinearity="relu") {
+                             std::string nonlinearity="relu",
+                             std::optional<int> seed = std::nullopt) {
 
     assert(shape.size()==2 && "dimension of xavier_uniform shape must be 2");
     assert(nonlinearity=="relu" && "only relu supported currently");
@@ -80,7 +84,7 @@ std::shared_ptr<NdlTensor> kaiming_normal(std::vector<int32_t> shape,
 
     float std = std_f(shape[0]);
 
-    return randn_shptr(shape, 0.0, std, dtype, device);
+    return randn_shptr(shape, seed, 0.0, std, dtype, device);
 }
 
 #endif

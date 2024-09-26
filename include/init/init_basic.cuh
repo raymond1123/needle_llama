@@ -8,16 +8,26 @@
 #include <random>
 
 namespace py = pybind11;
+//class NdlTensor;
 
 // Generate uniformly distributed random numbers
 py::array_t<float> _generate_uniform(std::vector<int32_t>& shape, 
-                                    float min=0.0, float max=1.0) {
+                                    float min=0.0, float max=1.0, 
+                                    std::optional<int> seed = std::nullopt) {
     size_t size=1;
     for(auto& s: shape)
         size *= s;
 
     // Initialize a random number generator
-    std::mt19937 rng(std::random_device{}());
+    //std::mt19937 rng(seed); // specific seed
+    //std::mt19937 rng(std::random_device{}());
+    std::mt19937 rng;
+    if (seed.has_value()) {
+        rng.seed(seed.value());  // offer seed 
+    } else {
+        rng.seed(std::random_device{}());  // without seed 
+    }
+
     std::uniform_real_distribution<float> dist(min, max);
 
     // Create a buffer to hold the random numbers
@@ -33,13 +43,22 @@ py::array_t<float> _generate_uniform(std::vector<int32_t>& shape,
 }
 
 py::array_t<float> _generate_normal(std::vector<int32_t> shape, 
-                   float mean=0.0, float std=1.0) {
+                   float mean=0.0, float std=1.0, 
+                   std::optional<int> seed = std::nullopt) {
     size_t size=1;
     for(auto& s: shape)
         size *= s;
 
     // Initialize a random number generator
-    std::mt19937 rng(std::random_device{}());
+    //std::mt19937 rng(seed); // specific seed
+    //std::mt19937 rng(std::random_device{}());
+    std::mt19937 rng;
+    if (seed.has_value()) {
+        rng.seed(seed.value());  // offer seed 
+    } else {
+        rng.seed(std::random_device{}());  // without seed 
+    }
+
     std::normal_distribution<float> dist(mean, std);
 
     // Create a buffer to hold the random numbers
@@ -77,14 +96,14 @@ py::array_t<float> _generate_randb(std::vector<int32_t>& shape,
     return result;
 }
 
-
 // Generate uniformly distributed random numbers
 NdlTensor rand(std::vector<int32_t> shape, 
-               float min=0.0, float max=1.0,
+               std::optional<int> seed = std::nullopt,
+               float min=0.0, float max=1.0, 
                DataType dtype=DataType::FLOAT,
                BackendType device=BackendType::CUDA) {
 
-    auto result = _generate_uniform(shape, max, min);
+    auto result = _generate_uniform(shape, max, min, seed);
     auto tensor = NdlTensor(result, dtype, device);
 
     return tensor;
@@ -92,11 +111,12 @@ NdlTensor rand(std::vector<int32_t> shape,
 
 // Generate uniformly distributed random numbers
 std::shared_ptr<NdlTensor> rand_shptr(std::vector<int32_t> shape, 
-                   float min=0.0, float max=1.0,
+                   std::optional<int> seed = std::nullopt,
+                   float min=0.0, float max=1.0, 
                    DataType dtype=DataType::FLOAT,
                    BackendType device=BackendType::CUDA) {
 
-    auto result = _generate_uniform(shape, max, min);
+    auto result = _generate_uniform(shape, max, min, seed);
     std::shared_ptr<NdlTensor> tensor = 
         std::make_shared<NdlTensor>(result, dtype, device);
 
@@ -105,21 +125,23 @@ std::shared_ptr<NdlTensor> rand_shptr(std::vector<int32_t> shape,
 
 // Generate Gaussian distributed random numbers
 NdlTensor randn(std::vector<int32_t> shape, 
-                   float mean=0.0, float std=1.0,
+                   std::optional<int> seed = std::nullopt,
+                   float mean=0.0, float std=1.0, 
                    DataType dtype=DataType::FLOAT,
                    BackendType device=BackendType::CUDA) {
 
-    auto result = _generate_normal(shape, mean, std);
+    auto result = _generate_normal(shape, mean, std, seed);
     auto tensor = NdlTensor(result, dtype, device);
     return tensor;
 }
 
 std::shared_ptr<NdlTensor> randn_shptr(std::vector<int32_t> shape, 
-                   float mean=0.0, float std=1.0,
+                   std::optional<int> seed = std::nullopt,
+                   float mean=0.0, float std=1.0, 
                    DataType dtype=DataType::FLOAT,
                    BackendType device=BackendType::CUDA) {
 
-    auto result = _generate_normal(shape, mean, std);
+    auto result = _generate_normal(shape, mean, std, seed);
     std::shared_ptr<NdlTensor> tensor = 
         std::make_shared<NdlTensor>(result, dtype, device);
 

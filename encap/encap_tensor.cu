@@ -312,6 +312,20 @@ void bind_function(py::module& m) {
     py::arg("condition"),
     py::arg("x"),
     py::arg("y"));
+
+    m.def("rand", [](std::vector<int32_t> shape, 
+               std::optional<int> seed = std::nullopt,
+               float min=0.0, float max=1.0, 
+               DataType dtype=DataType::FLOAT,
+               BackendType device=BackendType::CUDA) {
+        return rand(shape, seed, min, max, dtype, device);
+    }, 
+    py::arg("shape"),
+    py::arg("seed"),
+    py::arg("min")=0.0,
+    py::arg("max")=1.0,
+    py::arg("dtype")=DataType::FLOAT,
+    py::arg("device")=BackendType::CUDA);
 }
 
 PYBIND11_MODULE(needle, m) {

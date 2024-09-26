@@ -686,9 +686,6 @@ public:
     DataType dtype;
     BackendType device;
 
-    //NdlTensor(const Tensor<float>& tensor) : __tensor(tensor) {}
-    //NdlTensor(const Tensor<__half>& tensor) : __tensor(tensor) {}
-
 private:
     std::variant<Tensor<float>, Tensor<__half>> __tensor;
 
